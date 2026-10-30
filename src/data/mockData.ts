@@ -1601,8 +1601,23 @@ export const HOSPITAL_DEPARTMENTS = [
 
 export const INITIAL_SYSTEM_USERS: SystemUser[] = [
   {
+    id: 'usr-admin',
+    username: 'admin',
+    password: 'admin1234',
+    fullName: 'ผู้ดูแลระบบสารสนเทศ (Administrator)',
+    role: 'super_admin',
+    roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
+    department: '17. สารสนเทศ',
+    phone: '082-998-4411 (ต่อ 145)',
+    email: 'admin.it@skh.moph.go.th',
+    status: 'active',
+    lastLogin: 'วันนี้ 10:14 น.',
+    permissions: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export']
+  },
+  {
     id: 'usr-01',
     username: 'admin.it',
+    password: 'admin1234',
     fullName: 'นายวรพจน์ ธนสารพาณิชย์',
     role: 'super_admin',
     roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
@@ -1690,6 +1705,20 @@ export const INITIAL_SYSTEM_USERS: SystemUser[] = [
     status: 'active',
     lastLogin: '26 ต.ค. 2569',
     permissions: ['repair_create', 'repair_inspect', 'asset_view']
+  },
+  {
+    id: 'usr-pending-01',
+    username: 'somying.er',
+    password: 'password123',
+    fullName: 'พว.สมหญิง วงศ์ใจ',
+    role: 'department_staff',
+    roleName: 'พยาบาลวิชาชีพปฏิบัติการ (ขอสิทธิ์แจ้งซ่อม ER)',
+    department: '5. อุบัติเหตุฉุกเฉิน',
+    phone: '081-998-3321',
+    email: 'somying.er@skh.moph.go.th',
+    status: 'pending',
+    registeredDate: '2026-10-30 08:30 น.',
+    permissions: ['repair_create', 'asset_view']
   }
 ];
 

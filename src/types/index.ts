@@ -233,17 +233,22 @@ export interface Technician {
 }
 
 export type UserRole = 'super_admin' | 'supervisor' | 'technician' | 'department_staff';
+export type UserStatus = 'active' | 'pending' | 'suspended' | 'rejected';
 
 export interface SystemUser {
   id: string;
   username: string;
+  password?: string;
   fullName: string;
   role: UserRole;
   roleName: string;
   department: string;
   phone: string;
   email: string;
-  status: 'active' | 'suspended';
-  lastLogin: string;
+  status: UserStatus;
+  registeredDate?: string;
+  approvedDate?: string;
+  approvedBy?: string;
+  lastLogin?: string;
   permissions: string[];
 }

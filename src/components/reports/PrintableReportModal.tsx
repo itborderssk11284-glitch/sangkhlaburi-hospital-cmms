@@ -1,5 +1,6 @@
 import React from 'react';
 import { Printer, X, Download } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 
 interface PrintableReportModalProps {
   reportType: 'repairs' | 'inventory' | 'replacement';
@@ -26,6 +27,7 @@ export const PrintableReportModal: React.FC<PrintableReportModalProps> = ({
   tableRows,
   onClose,
 }) => {
+  const { currentUser } = useApp();
   const getReportTitle = () => {
     switch (reportType) {
       case 'repairs':
@@ -225,43 +227,51 @@ export const PrintableReportModal: React.FC<PrintableReportModalProps> = ({
         {/* Official Endorsement Signature Section (MOPH Standard 3-Signatures) */}
         <div className="pt-6 border-t border-slate-300 text-xs text-slate-700">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            {/* Signature 1 */}
+            {/* Signature 1: ผู้รายงาน (ชื่อผู้ที่ login) */}
             <div className="flex flex-col items-center">
-              <div className="text-slate-600 mb-12">
+              <div className="text-slate-600 mb-10">
                 ลงชื่อ..........................................................
                 <br />
-                <span className="text-[11px]">(นายธีรพัฒน์ สมบูรณ์ผล)</span>
-              </div>
-              <div className="font-semibold text-slate-800">ผู้รายงาน / นายช่างเครื่องมือแพทย์</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">
-                วันที่ ........./........./............
-              </div>
-            </div>
-
-            {/* Signature 2 */}
-            <div className="flex flex-col items-center">
-              <div className="text-slate-600 mb-12">
-                ลงชื่อ..........................................................
-                <br />
-                <span className="text-[11px]">(นายอนุรักษ์ วงศ์สว่าง)</span>
+                <span className="text-[11px] font-semibold text-slate-800">
+                  ({currentUser ? currentUser.fullName : '..........................................................'})
+                </span>
               </div>
               <div className="font-semibold text-slate-800">
-                ผู้ตรวจสอบ / หัวหน้างานซ่อมบำรุง
+                ผู้รายงาน {currentUser?.roleName ? `(${currentUser.roleName})` : ''}
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">
                 วันที่ ........./........./............
               </div>
             </div>
 
-            {/* Signature 3 */}
+            {/* Signature 2: ผู้ตรวจสอบ (นางสาวชุติญา จรัสกุลธาดา) */}
             <div className="flex flex-col items-center">
-              <div className="text-slate-600 mb-12">
+              <div className="text-slate-600 mb-10">
                 ลงชื่อ..........................................................
                 <br />
-                <span className="text-[11px]">(ผู้อำนวยการโรงพยาบาลสังขละบุรี)</span>
+                <span className="text-[11px] font-semibold text-slate-800">
+                  (นางสาวชุติญา จรัสกุลธาดา)
+                </span>
               </div>
               <div className="font-semibold text-slate-800">
-                ผู้อนุมัติ / ผู้อำนวยการโรงพยาบาล
+                ผู้ตรวจสอบ / เจ้าหน้าที่บริหารงานทั่วไป
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                วันที่ ........./........./............
+              </div>
+            </div>
+
+            {/* Signature 3: ผู้อนุมัติ (นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์) */}
+            <div className="flex flex-col items-center">
+              <div className="text-slate-600 mb-10">
+                ลงชื่อ..........................................................
+                <br />
+                <span className="text-[11px] font-semibold text-slate-800">
+                  (นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์)
+                </span>
+              </div>
+              <div className="font-semibold text-slate-800">
+                ผู้อนุมัติ / รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">
                 วันที่ ........./........./............

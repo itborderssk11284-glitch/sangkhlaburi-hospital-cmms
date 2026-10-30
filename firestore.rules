@@ -16,7 +16,7 @@ service cloud.firestore {
                     && request.resource.data.assetName is string
                     && request.resource.data.assetName.size() <= 300;
       allow update: if request.resource.data.orderNumber is string;
-      allow delete: if false;
+      allow delete: if true;
     }
 
     // Assets collection (ทะเบียนครุภัณฑ์)
@@ -25,6 +25,16 @@ service cloud.firestore {
       allow create, update: if request.resource.data.code is string
                             && request.resource.data.code.size() > 0
                             && request.resource.data.code.size() <= 100;
+      allow delete: if true;
+    }
+
+    // System users collection (จัดการผู้ใช้งานและอนุมัติสิทธิ์แอดมิน)
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.resource.data.username is string
+                    && request.resource.data.username.size() > 0
+                    && request.resource.data.username.size() <= 100;
+      allow update: if request.resource.data.username is string;
       allow delete: if false;
     }
 

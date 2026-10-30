@@ -40,6 +40,21 @@
         "status": { "type": "string", "description": "สถานะการใช้งาน" }
       },
       "required": ["code", "name", "category", "department", "status"]
+    },
+    "SystemUser": {
+      "title": "SystemUser",
+      "description": "ผู้ใช้งานระบบและการขออนุมัติสิทธิ์ โรงพยาบาลสังขละบุรี",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "รหัสผู้ใช้" },
+        "username": { "type": "string", "description": "ชื่อผู้ใช้สำหรับเข้าสู่ระบบ" },
+        "fullName": { "type": "string", "description": "ชื่อ-นามสกุล" },
+        "role": { "type": "string", "description": "สิทธิ์การใช้งาน" },
+        "department": { "type": "string", "description": "แผนก/หน่วยงาน" },
+        "status": { "type": "string", "enum": ["active", "pending", "suspended", "rejected"], "description": "สถานะการอนุมัติ" },
+        "phone": { "type": "string", "description": "เบอร์โทรศัพท์" }
+      },
+      "required": ["username", "fullName", "department", "status"]
     }
   },
   "firestore": {
@@ -50,6 +65,10 @@
     "/assets/{assetId}": {
       "schema": "Asset",
       "description": "จัดเก็บข้อมูลทะเบียนครุภัณฑ์"
+    },
+    "/users/{userId}": {
+      "schema": "SystemUser",
+      "description": "จัดเก็บข้อมูลบัญชีผู้ใช้งานและการอนุมัติสิทธิ์เข้าใช้งานระบบ"
     }
   }
 }

@@ -10,7 +10,12 @@ import {
   Building2,
   Calendar,
   Wind,
-  Database
+  Database,
+  LogOut,
+  LogIn,
+  UserCheck,
+  Trash2,
+  Shield
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -29,11 +34,20 @@ export const TopBar: React.FC<TopBarProps> = ({
     workOrders, 
     pmRecords, 
     assets,
+    systemUsers,
+    currentUser,
+    isAuthModalOpen,
+    setIsAuthModalOpen,
+    logout,
+    clearAllSampleData,
     firebaseConnected,
     firebaseSyncStatus,
     lastSyncedTime,
     syncAllDataToCloud
   } = useApp();
+
+  // Pending user approvals
+  const pendingApprovals = systemUsers.filter(u => u.status === 'pending');
 
   // Active emergency & urgent count
   const emergencyOrders = workOrders.filter(
@@ -180,6 +194,69 @@ export const TopBar: React.FC<TopBarProps> = ({
               <span className="bg-amber-600 text-white px-1.5 rounded-full text-[10px] font-mono">
                 {overduePMs}
               </span>
+            </button>
+          )}
+
+          {/* Pending User Approvals */}
+          {currentUser?.role === 'super_admin' && pendingApprovals.length > 0 && (
+            <button
+              onClick={() => setActiveTab('workforce')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100 transition cursor-pointer text-xs font-bold"
+              title="มีผู้สมัครขอเข้าใช้งานรอการอนุมัติจากแอดมิน"
+            >
+              <UserCheck className="w-4 h-4 text-purple-600 shrink-0" />
+              <span className="hidden sm:inline">รออนุมัติ</span>
+              <span className="bg-purple-600 text-white px-1.5 rounded-full text-[10px] font-mono">
+                {pendingApprovals.length}
+              </span>
+            </button>
+          )}
+
+          {/* Clear Sample Data to Empty Database Button */}
+          {(assets.length > 0 || workOrders.length > 0) && (
+            <button
+              onClick={() => {
+                if (window.confirm('คุณต้องการลบข้อมูลตัวอย่างทั้งหมดให้เป็นฐานข้อมูลเปล่า เพื่อเตรียมบันทึกข้อมูลจริงใช่หรือไม่?')) {
+                  clearAllSampleData();
+                }
+              }}
+              className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition text-xs font-medium cursor-pointer"
+              title="ล้างข้อมูลตัวอย่างให้เป็นฐานเปล่าพร้อมใช้งานจริง"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>ล้างเป็นฐานเปล่า</span>
+            </button>
+          )}
+
+          {/* User Authentication Pill */}
+          {currentUser ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              <div className="text-right hidden sm:block">
+                <div className="text-xs font-bold text-slate-800 flex items-center justify-end gap-1">
+                  {currentUser.role === 'super_admin' && (
+                    <span className="bg-purple-100 text-purple-800 text-[9px] px-1.5 py-0.2 rounded font-bold">Admin</span>
+                  )}
+                  <span>{currentUser.fullName}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">
+                  {currentUser.department}
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                title="ออกจากระบบ (Sign Out)"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition cursor-pointer shadow-xs"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>เข้าสู่ระบบ</span>
             </button>
           )}
 

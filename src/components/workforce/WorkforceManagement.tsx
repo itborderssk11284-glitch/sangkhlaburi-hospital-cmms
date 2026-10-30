@@ -19,7 +19,10 @@ import {
   Check,
   X,
   Lock,
-  Building2
+  Building2,
+  Trash2,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Technician, SystemUser, UserRole } from '../../types';
@@ -29,8 +32,14 @@ export const WorkforceManagement: React.FC = () => {
     technicians, 
     systemUsers, 
     workOrders, 
+    assets,
+    currentUser,
     updateTechStatus, 
     updateUserStatus,
+    approveUser,
+    rejectUser,
+    clearAllSampleData,
+    loadSampleData,
     setSelectedOrderForDetail 
   } = useApp();
 
@@ -39,6 +48,11 @@ export const WorkforceManagement: React.FC = () => {
   const [searchUserQuery, setSearchUserQuery] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('ทั้งหมด');
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState<boolean>(false);
+  const [dbNotice, setDbNotice] = useState<string | null>(null);
+
+  const pendingUsers = useMemo(() => {
+    return systemUsers.filter(u => u.status === 'pending');
+  }, [systemUsers]);
 
   // New user form state
   const [newUserData, setNewUserData] = useState<{
@@ -178,6 +192,134 @@ export const WorkforceManagement: React.FC = () => {
       {/* ========================================================================= */}
       {mainView === 'users' && (
         <div className="space-y-6">
+
+          {/* Pending Approval Requests Panel (สิทธิแอดมินอนุมัติ) */}
+          {pendingUsers.length > 0 && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                      <span>คำขอสมัครเข้าใช้งานระบบ รอการอนุมัติจากแอดมิน</span>
+                      <span className="bg-amber-600 text-white text-[11px] px-2 py-0.5 rounded-full font-mono font-bold">
+                        {pendingUsers.length} คำขอ
+                      </span>
+                    </h3>
+                    <p className="text-xs text-amber-900/80">
+                      ผู้ใช้งานเหล่านี้จะไม่สามารถเข้าสู่ระบบได้จนกว่าผู้ดูแลระบบจะกดอนุมัติสิทธิ์
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {pendingUsers.map((pUser) => (
+                  <div 
+                    key={pUser.id}
+                    className="bg-white p-4 rounded-2xl border border-amber-200 shadow-2xs flex flex-col justify-between gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {pUser.fullName}
+                        </span>
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          รออนุมัติ
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-600 mt-1 space-y-0.5">
+                        <p>ชื่อผู้ใช้: <strong className="font-mono text-slate-800">{pUser.username}</strong></p>
+                        <p>แผนก/หน่วยงาน: <strong className="text-slate-800">{pUser.department}</strong></p>
+                        <p>สิทธิ์ที่ขอ: <strong className="text-slate-800">{pUser.roleName}</strong></p>
+                        <p>เบอร์โทรศัพท์: <strong className="font-mono text-slate-800">{pUser.phone}</strong></p>
+                        {pUser.registeredDate && (
+                          <p className="text-[10px] text-slate-400">ยื่นคำขอเมื่อ: {pUser.registeredDate}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => approveUser(pUser.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-xs cursor-pointer"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>อนุมัติสิทธิ์ (Approve)</span>
+                      </button>
+                      <button
+                        onClick={() => rejectUser(pUser.id)}
+                        className="flex items-center justify-center gap-1 py-2 px-3 border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl text-xs transition cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>ปฏิเสธ</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Database Tools Card (ล้างข้อมูลตัวอย่าง / ฐานข้อมูลเปล่าสำหรับโรงพยาบาลจริง) */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-slate-900 text-sm font-display">
+                  จัดการฐานข้อมูลระบบ (Database Reset & Clear Tools)
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                สถานะปัจจุบัน: ครุภัณฑ์ <strong>{assets.length}</strong> รายการ | ใบแจ้งซ่อม <strong>{workOrders.length}</strong> รายการ
+                {assets.length === 0 && workOrders.length === 0 && (
+                  <span className="text-emerald-700 font-bold ml-1.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    ✓ ฐานข้อมูลว่างเปล่า พร้อมบันทึกข้อมูลจริง
+                  </span>
+                )}
+              </p>
+              {dbNotice && (
+                <div className="mt-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 inline-block">
+                  {dbNotice}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  if (window.confirm('คุณต้องการลบข้อมูลตัวอย่างทั้งหมดให้เป็นฐานข้อมูลเปล่า เพื่อเตรียมบันทึกข้อมูลจริงใช่หรือไม่?')) {
+                    await clearAllSampleData();
+                    setDbNotice('ลบข้อมูลตัวอย่างเรียบร้อยแล้ว! ฐานข้อมูลว่างเปล่าพร้อมสำหรับการบันทึกข้อมูลจริง');
+                    setTimeout(() => setDbNotice(null), 5000);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer"
+                title="ล้างข้อมูลตัวอย่างทั้งหมดเป็นฐานเปล่า"
+              >
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <span>ล้างข้อมูลเป็นฐานเปล่า</span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (window.confirm('ต้องการโหลดข้อมูลตัวอย่างสำหรับการทดสอบระบบใช่หรือไม่?')) {
+                    await loadSampleData();
+                    setDbNotice('โหลดข้อมูลตัวอย่างสำหรับการทดสอบเรียบร้อยแล้ว');
+                    setTimeout(() => setDbNotice(null), 5000);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
+                title="โหลดข้อมูลตัวอย่างสำหรับการทดสอบ"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                <span>โหลดตัวอย่างทดสอบ</span>
+              </button>
+            </div>
+          </div>
+
           {/* User Metrics Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
@@ -314,25 +456,44 @@ export const WorkforceManagement: React.FC = () => {
                         <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                           user.status === 'active'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : user.status === 'pending'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}>
-                          {user.status === 'active' ? '● ปกติ' : '✕ ระงับการใช้งาน'}
+                          {user.status === 'active' ? '● ปกติ' : user.status === 'pending' ? '● รออนุมัติ' : '✕ ระงับการใช้งาน'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                        {user.lastLogin}
+                        {user.lastLogin || user.registeredDate || '-'}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => updateUserStatus(user.id, user.status === 'active' ? 'suspended' : 'active')}
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                            user.status === 'active'
-                              ? 'text-rose-600 hover:bg-rose-50 border-rose-200'
-                              : 'text-emerald-700 hover:bg-emerald-50 border-emerald-200'
-                          }`}
-                        >
-                          {user.status === 'active' ? 'ระงับสิทธิ์' : 'เปิดใช้งาน'}
-                        </button>
+                        {user.status === 'pending' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => approveUser(user.id)}
+                              className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer"
+                            >
+                              อนุมัติ
+                            </button>
+                            <button
+                              onClick={() => rejectUser(user.id)}
+                              className="text-xs font-medium px-2 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                            >
+                              ปฏิเสธ
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => updateUserStatus(user.id, user.status === 'active' ? 'suspended' : 'active')}
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                              user.status === 'active'
+                                ? 'text-rose-600 hover:bg-rose-50 border-rose-200'
+                                : 'text-emerald-700 hover:bg-emerald-50 border-emerald-200'
+                            }`}
+                          >
+                            {user.status === 'active' ? 'ระงับสิทธิ์' : 'เปิดใช้งาน'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

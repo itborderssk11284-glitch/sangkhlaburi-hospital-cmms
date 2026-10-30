@@ -14,6 +14,7 @@ import { AssetDetailModal } from './components/assets/AssetDetailModal';
 import { PrintableWorkOrder } from './components/common/PrintableWorkOrder';
 import { PrintableQRBadge } from './components/common/PrintableQRBadge';
 import { PrintableAssetLedger } from './components/common/PrintableAssetLedger';
+import { AuthModal } from './components/auth/AuthModal';
 import { Asset } from './types';
 
 function MainContent() {
@@ -27,7 +28,9 @@ function MainContent() {
     selectedAssetForQR, 
     setSelectedAssetForQR,
     selectedAssetForLedger,
-    setSelectedAssetForLedger
+    setSelectedAssetForLedger,
+    isAuthModalOpen,
+    setIsAuthModalOpen
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -157,6 +160,12 @@ function MainContent() {
           onClose={() => setSelectedAssetForLedger(null)}
         />
       )}
+
+      {/* Authentication & User Approval Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

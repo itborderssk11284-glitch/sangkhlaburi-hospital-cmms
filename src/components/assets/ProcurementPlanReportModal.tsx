@@ -19,7 +19,7 @@ import { useApp } from '../../context/AppContext';
 export const ProcurementPlanReportModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const { assets, workOrders } = useApp();
+  const { assets, workOrders, currentUser } = useApp();
 
   const [filterRecommendation, setFilterRecommendation] = useState<string>('all');
   const [fiscalYear, setFiscalYear] = useState('2570');
@@ -369,27 +369,33 @@ export const ProcurementPlanReportModal: React.FC<{
           <div className="pt-6 border-t border-slate-300">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 text-center text-xs">
               <div className="flex flex-col items-center">
-                <div className="h-12 border-b border-slate-400 w-40 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">นายกิตติศักดิ์ พัฒนไพศาล</span>
+                <div className="h-12 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
+                  <span className="text-[11px] font-serif text-slate-800 font-semibold">
+                    {currentUser ? currentUser.fullName : '...............................................'}
+                  </span>
                 </div>
-                <span className="font-semibold text-slate-800 mt-2">(นายกิตติศักดิ์ พัฒนไพศาล)</span>
-                <span className="text-[11px] text-slate-500">วิศวกรชีวการแพทย์ชำนาญการ / ผู้จัดทำรายงาน</span>
+                <span className="font-semibold text-slate-800 mt-2">
+                  ({currentUser ? currentUser.fullName : '...............................................'})
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  ผู้รายงาน {currentUser?.roleName ? `(${currentUser.roleName})` : ''}
+                </span>
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="h-12 border-b border-slate-400 w-40 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">นายอนุรักษ์ วงศ์สว่าง</span>
+                <div className="h-12 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
+                  <span className="text-[11px] font-serif text-slate-800 font-semibold">นางสาวชุติญา จรัสกุลธาดา</span>
                 </div>
-                <span className="font-semibold text-slate-800 mt-2">(นายอนุรักษ์ วงศ์สว่าง)</span>
-                <span className="text-[11px] text-slate-500">หัวหน้างานซ่อมบำรุงวิศวกรรมการแพทย์</span>
+                <span className="font-semibold text-slate-800 mt-2">(นางสาวชุติญา จรัสกุลธาดา)</span>
+                <span className="text-[11px] text-slate-500">ผู้ตรวจสอบ / เจ้าหน้าที่บริหารงานทั่วไป</span>
               </div>
 
               <div className="flex flex-col items-center col-span-2 sm:col-span-1">
-                <div className="h-12 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">...............................................</span>
+                <div className="h-12 border-b border-slate-400 w-48 flex items-end justify-center pb-1">
+                  <span className="text-[11px] font-serif text-slate-800 font-semibold">นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์</span>
                 </div>
-                <span className="font-semibold text-slate-800 mt-2">(ผู้อำนวยการโรงพยาบาลสังขละบุรี)</span>
-                <span className="text-[11px] text-slate-500">ผู้อนุมัติบรรจุในแผนจัดซื้อประจำปี</span>
+                <span className="font-semibold text-slate-800 mt-2">(นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์)</span>
+                <span className="text-[11px] text-slate-500">ผู้อนุมัติ / รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาล</span>
               </div>
             </div>
           </div>
