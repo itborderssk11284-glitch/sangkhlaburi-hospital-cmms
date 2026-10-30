@@ -1,0 +1,6 @@
+{
+  "name": "ระบบซ่อมบำรุงครุภัณฑ์ โรงพยาบาลสังขละบุรี",
+  "description": "ระบบบริหารจัดการทะเบียนครุภัณฑ์ แจ้งซ่อมและติดตามสถานะ การบำรุงรักษาเชิงป้องกัน (PM & Calibration) คลังอะไหล่ และวิเคราะห์งานซ่อม โรงพยาบาลสังขละบุรี",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

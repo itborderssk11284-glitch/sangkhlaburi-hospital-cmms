@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "WorkOrder": {
+      "title": "WorkOrder",
+      "description": "ใบแจ้งซ่อมและติดตามสถานะงานซ่อมบำรุง โรงพยาบาลสังขละบุรี",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "รหัสเอกสาร" },
+        "orderNumber": { "type": "string", "description": "เลขที่ใบแจ้งซ่อม เช่น WO-2026-0001" },
+        "assetId": { "type": "string", "description": "รหัส ID ครุภัณฑ์" },
+        "assetCode": { "type": "string", "description": "หมายเลขครุภัณฑ์" },
+        "assetName": { "type": "string", "description": "ชื่อครุภัณฑ์" },
+        "department": { "type": "string", "description": "แผนกที่แจ้งซ่อม" },
+        "reporterName": { "type": "string", "description": "ชื่อผู้แจ้งซ่อม" },
+        "reporterPhone": { "type": "string", "description": "เบอร์โทรศัพท์ติดต่อ" },
+        "priority": { "type": "string", "enum": ["emergency", "urgent", "normal"], "description": "ระดับความเร่งด่วน" },
+        "status": { "type": "string", "description": "สถานะงานซ่อม" },
+        "symptom": { "type": "string", "description": "อาการเสีย/ปัญหาที่พบ" },
+        "errorDetails": { "type": "string", "description": "รายละเอียดความผิดปกติเพิ่มเติม" },
+        "assignedTechId": { "type": "string", "description": "รหัสช่างผู้รับผิดชอบ" },
+        "assignedTechName": { "type": "string", "description": "ชื่อช่างผู้รับผิดชอบ" },
+        "reportDate": { "type": "string", "description": "วันเวลาแจ้งซ่อม" },
+        "repairStartDate": { "type": "string", "description": "วันเวลาเริ่มซ่อม" },
+        "repairEndDate": { "type": "string", "description": "วันเวลาซ่อมเสร็จ" },
+        "totalCost": { "type": "number", "description": "ค่าใช้จ่ายในการซ่อม" },
+        "notes": { "type": "string", "description": "หมายเหตุเพิ่มเติม" }
+      },
+      "required": ["orderNumber", "assetName", "department", "symptom", "status", "reportDate"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "ทะเบียนครุภัณฑ์โรงพยาบาลสังขละบุรี",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID ครุภัณฑ์" },
+        "code": { "type": "string", "description": "หมายเลขครุภัณฑ์" },
+        "name": { "type": "string", "description": "ชื่อรายการครุภัณฑ์" },
+        "category": { "type": "string", "description": "หมวดหมู่ครุภัณฑ์" },
+        "department": { "type": "string", "description": "แผนกที่ดูแล" },
+        "status": { "type": "string", "description": "สถานะการใช้งาน" }
+      },
+      "required": ["code", "name", "category", "department", "status"]
+    }
+  },
+  "firestore": {
+    "/work_orders/{orderId}": {
+      "schema": "WorkOrder",
+      "description": "จัดเก็บข้อมูลใบแจ้งซ่อมและประวัติการซ่อมบำรุงแบบ Real-time บน Firebase Firestore"
+    },
+    "/assets/{assetId}": {
+      "schema": "Asset",
+      "description": "จัดเก็บข้อมูลทะเบียนครุภัณฑ์"
+    }
+  }
+}

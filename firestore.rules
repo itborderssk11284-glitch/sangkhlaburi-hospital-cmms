@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Connectivity test document
+    match /test/connection {
+      allow read, write: if true;
+    }
+    
+    // Work orders collection (บันทึกงานซ่อมบำรุง)
+    match /work_orders/{orderId} {
+      allow read: if true;
+      allow create: if request.resource.data.orderNumber is string 
+                    && request.resource.data.orderNumber.size() > 0
+                    && request.resource.data.orderNumber.size() <= 100
+                    && request.resource.data.assetName is string
+                    && request.resource.data.assetName.size() <= 300;
+      allow update: if request.resource.data.orderNumber is string;
+      allow delete: if false;
+    }
+
+    // Assets collection (ทะเบียนครุภัณฑ์)
+    match /assets/{assetId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.code is string
+                            && request.resource.data.code.size() > 0
+                            && request.resource.data.code.size() <= 100;
+      allow delete: if false;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
