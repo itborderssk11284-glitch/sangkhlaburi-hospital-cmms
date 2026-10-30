@@ -202,9 +202,7 @@ export function subscribeToAssets(onUpdate: (assets: Asset[]) => void): () => vo
         snapshot.forEach(docSnap => {
           assets.push(docSnap.data() as Asset);
         });
-        if (assets.length > 0) {
-          onUpdate(assets);
-        }
+        onUpdate(assets);
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, ASSETS_COLLECTION);
@@ -325,15 +323,19 @@ export async function clearFirestoreData(): Promise<void> {
   try {
     // 1. Delete all work orders
     const ordersSnap = await getDocs(collection(db, WORK_ORDERS_COLLECTION));
-    const batchOrders = writeBatch(db);
-    ordersSnap.forEach((d) => batchOrders.delete(d.ref));
-    await batchOrders.commit();
+    if (!ordersSnap.empty) {
+      const batchOrders = writeBatch(db);
+      ordersSnap.forEach((d) => batchOrders.delete(d.ref));
+      await batchOrders.commit();
+    }
 
     // 2. Delete all assets
     const assetsSnap = await getDocs(collection(db, ASSETS_COLLECTION));
-    const batchAssets = writeBatch(db);
-    assetsSnap.forEach((d) => batchAssets.delete(d.ref));
-    await batchAssets.commit();
+    if (!assetsSnap.empty) {
+      const batchAssets = writeBatch(db);
+      assetsSnap.forEach((d) => batchAssets.delete(d.ref));
+      await batchAssets.commit();
+    }
 
     console.log('[Firebase] Cleared sample work orders and assets from Firestore.');
   } catch (error) {

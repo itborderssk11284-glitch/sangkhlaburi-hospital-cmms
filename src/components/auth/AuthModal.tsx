@@ -11,7 +11,9 @@ import {
   UserPlus, 
   Clock,
   KeyRound,
-  Info
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { HOSPITAL_DEPARTMENTS } from '../../data/mockData';
@@ -22,9 +24,10 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   
-  // Login fields
-  const [loginUsername, setLoginUsername] = useState('admin');
-  const [loginPassword, setLoginPassword] = useState('admin1234');
+  // Login fields (clean, empty by default without exposing credentials)
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Register fields
@@ -32,6 +35,7 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regDepartment, setRegDepartment] = useState('3. ผู้ป่วยนอก');
   const [regRole, setRegRole] = useState<UserRole>('department_staff');
   const [regPhone, setRegPhone] = useState('');
@@ -44,8 +48,13 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
-    setIsSubmitting(true);
 
+    if (!loginUsername.trim() || !loginPassword) {
+      setLoginError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+      return;
+    }
+
+    setIsSubmitting(true);
     const result = login(loginUsername.trim(), loginPassword);
     setIsSubmitting(false);
 
@@ -160,20 +169,8 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
             /* Login Form */
             <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
               
-              {/* Default Admin Notice Pill */}
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-emerald-900">
-                <KeyRound className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed">
-                  <div className="font-bold text-emerald-950 mb-0.5">
-                    🔑 บัญชีผู้ดูแลระบบตั้งต้น (Default Admin):
-                  </div>
-                  <div>ชื่อผู้ใช้ (Username): <strong className="font-mono bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-800">admin</strong></div>
-                  <div className="mt-0.5">รหัสผ่าน (Password): <strong className="font-mono bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-800">admin1234</strong></div>
-                </div>
-              </div>
-
               {loginError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl flex items-start gap-2 text-xs">
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl flex items-start gap-2 text-xs animate-in fade-in">
                   <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                   <span>{loginError}</span>
                 </div>
@@ -190,8 +187,8 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
                     required
                     value={loginUsername}
                     onChange={(e) => setLoginUsername(e.target.value)}
-                    placeholder="เช่น admin หรือชื่อผู้ใช้ของคุณ"
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    placeholder="กรอกชื่อผู้ใช้ เช่น admin หรือ username ของท่าน"
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none text-xs"
                   />
                 </div>
               </div>
@@ -203,13 +200,21 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
-                    type="password"
+                    type={showLoginPassword ? 'text' : 'password'}
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="กรอกรหัสผ่านของคุณ"
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    placeholder="กรอกรหัสผ่านเพื่อเข้าใช้งาน"
+                    className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none text-xs"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showLoginPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -220,7 +225,7 @@ export const AuthModal: React.FC<{ isOpen: boolean; onClose?: () => void }> = ({
                   className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 active:scale-99 text-white font-bold rounded-xl transition shadow-md shadow-emerald-700/20 cursor-pointer flex items-center justify-center gap-2 text-sm"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>{isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</span>
+                  <span>{isSubmitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ (Sign In)'}</span>
                 </button>
               </div>
 

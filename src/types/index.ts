@@ -251,4 +251,5 @@ export interface SystemUser {
   approvedBy?: string;
   lastLogin?: string;
   permissions: string[];
+  allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
 }

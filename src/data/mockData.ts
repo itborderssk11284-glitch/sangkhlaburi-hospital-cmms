@@ -1599,21 +1599,24 @@ export const HOSPITAL_DEPARTMENTS = [
   '17. สารสนเทศ'
 ];
 
+export const DEFAULT_ADMIN_USER: SystemUser = {
+  id: 'usr-admin',
+  username: 'admin',
+  password: 'sskhos',
+  fullName: 'ผู้ดูแลระบบสารสนเทศ (Administrator)',
+  role: 'super_admin',
+  roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
+  department: '17. สารสนเทศ',
+  phone: '082-998-4411 (ต่อ 145)',
+  email: 'admin.it@skh.moph.go.th',
+  status: 'active',
+  lastLogin: 'วันนี้',
+  permissions: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export'],
+  allowedMenus: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce']
+};
+
 export const INITIAL_SYSTEM_USERS: SystemUser[] = [
-  {
-    id: 'usr-admin',
-    username: 'admin',
-    password: 'admin1234',
-    fullName: 'ผู้ดูแลระบบสารสนเทศ (Administrator)',
-    role: 'super_admin',
-    roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
-    department: '17. สารสนเทศ',
-    phone: '082-998-4411 (ต่อ 145)',
-    email: 'admin.it@skh.moph.go.th',
-    status: 'active',
-    lastLogin: 'วันนี้ 10:14 น.',
-    permissions: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export']
-  },
+  DEFAULT_ADMIN_USER,
   {
     id: 'usr-01',
     username: 'admin.it',

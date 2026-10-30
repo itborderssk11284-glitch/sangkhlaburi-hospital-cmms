@@ -9,7 +9,8 @@ import {
   PMStatus,
   UsedPart,
   SystemUser,
-  UserRole
+  UserRole,
+  UserStatus
 } from '../types';
 import { 
   INITIAL_ASSETS, 
@@ -17,7 +18,8 @@ import {
   INITIAL_PM_RECORDS, 
   INITIAL_SPARE_PARTS, 
   INITIAL_TECHNICIANS,
-  INITIAL_SYSTEM_USERS
+  INITIAL_SYSTEM_USERS,
+  DEFAULT_ADMIN_USER
 } from '../data/mockData';
 import {
   saveWorkOrderToFirestore,
@@ -74,7 +76,16 @@ interface AppContextType {
     role: UserRole;
     phone: string;
   }) => Promise<{ success: boolean; message?: string }>;
-  approveUser: (userId: string) => Promise<void>;
+  approveUser: (
+    userId: string, 
+    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    role?: UserRole
+  ) => Promise<void>;
+  updateUserPermissions: (
+    userId: string, 
+    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    role?: UserRole
+  ) => Promise<void>;
   rejectUser: (userId: string) => Promise<void>;
 
   // Clean Production Database Management
@@ -145,8 +156,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => {
-    const saved = localStorage.getItem('skh_system_users');
-    return saved ? JSON.parse(saved) : INITIAL_SYSTEM_USERS;
+    try {
+      const saved = localStorage.getItem('skh_system_users');
+      const list: SystemUser[] = saved ? JSON.parse(saved) : INITIAL_SYSTEM_USERS;
+      const hasAdmin = list.some(u => u.username.toLowerCase() === 'admin');
+      if (!hasAdmin) {
+        return [DEFAULT_ADMIN_USER, ...list];
+      }
+      return list.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'admin1234', status: 'active' as UserStatus } : u);
+    } catch {
+      return INITIAL_SYSTEM_USERS;
+    }
   });
 
   // Modal / Selected views
@@ -194,8 +214,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Subscribe to real-time users (new registrations & approvals)
     const unsubUsers = subscribeToUsers((remoteUsers) => {
-      if (!isMounted || !remoteUsers || remoteUsers.length === 0) return;
-      setSystemUsers(remoteUsers);
+      if (!isMounted || !remoteUsers) return;
+      const hasAdmin = remoteUsers.some(u => u.username.toLowerCase() === 'admin');
+      const finalUsers: SystemUser[] = hasAdmin
+        ? remoteUsers.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'admin1234', status: 'active' as UserStatus } : u)
+        : [DEFAULT_ADMIN_USER, ...remoteUsers];
+      setSystemUsers(finalUsers);
     });
 
     return () => {
@@ -263,13 +287,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Authentication Handlers
   const login = (username: string, password?: string): { success: boolean; message?: string } => {
-    const user = systemUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+
+    // 1. Admin login verification: username: admin, password: sskhos
+    if (cleanUser === 'admin') {
+      if (cleanPass !== 'sskhos') {
+        return { success: false, message: 'รหัสผ่านผู้ดูแลระบบ (Admin) ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
+      }
+      const adminUser: SystemUser = {
+        ...DEFAULT_ADMIN_USER,
+        status: 'active',
+        lastLogin: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toTimeString().slice(0, 5)
+      };
+      setCurrentUser(adminUser);
+      setIsAuthModalOpen(false);
+      localStorage.setItem('skh_current_user', JSON.stringify(adminUser));
+      setSystemUsers(prev => {
+        const withoutAdmin = prev.filter(u => u.username.toLowerCase() !== 'admin');
+        const next = [adminUser, ...withoutAdmin];
+        localStorage.setItem('skh_system_users', JSON.stringify(next));
+        return next;
+      });
+      saveUserToFirestore(adminUser).catch(console.warn);
+      return { success: true };
+    }
+
+    const user = systemUsers.find(u => u.username.toLowerCase() === cleanUser);
     if (!user) {
-      return { success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบหรือสมัครเข้าใช้งาน' };
+      return { success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้หรือสมัครขอเข้าใช้งาน' };
     }
     
     // Check password
-    if (user.password && password && user.password !== password) {
+    if (user.password && cleanPass && user.password !== cleanPass) {
       return { success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
     }
 
@@ -277,7 +327,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (user.status === 'pending') {
       return { 
         success: false, 
-        message: 'บัญชีของท่านอยู่ระหว่างรอการอนุมัติสิทธิ์จากแอดมิน (Admin Approval Required)' 
+        message: 'บัญชีของท่านอยู่ระหว่างรอการตรวจสอบและอนุมัติสิทธิ์เข้าใช้งานจากแอดมิน (Admin Approval Required)' 
       };
     }
     if (user.status === 'suspended' || user.status === 'rejected') {
@@ -293,6 +343,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       lastLogin: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toTimeString().slice(0, 5) 
     };
     setCurrentUser(updatedUser);
+    setIsAuthModalOpen(false);
     localStorage.setItem('skh_current_user', JSON.stringify(updatedUser));
     saveUserToFirestore(updatedUser).catch(console.warn);
     return { success: true };
@@ -331,6 +382,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       department_staff: ['repair_create', 'repair_inspect', 'asset_view']
     };
 
+    const defaultMenusMap: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
+      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
+      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
+      department_staff: ['dashboard', 'assets', 'work-orders']
+    };
+
     const newUser: SystemUser = {
       id: `usr-${Date.now().toString().slice(-6)}`,
       username: data.username.toLowerCase(),
@@ -343,7 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: `${data.username.toLowerCase()}@skh.moph.go.th`,
       status: 'pending', // Requires admin approval
       registeredDate: new Date().toLocaleString('th-TH'),
-      permissions: permissionsMap[data.role] || ['repair_create', 'asset_view']
+      permissions: permissionsMap[data.role] || ['repair_create', 'asset_view'],
+      allowedMenus: defaultMenusMap[data.role] || ['dashboard', 'assets', 'work-orders']
     };
 
     setSystemUsers(prev => [newUser, ...prev]);
@@ -351,18 +410,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
-  const approveUser = async (userId: string) => {
+  const approveUser = async (
+    userId: string, 
+    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    role?: UserRole
+  ) => {
     const target = systemUsers.find(u => u.id === userId);
     if (!target) return;
+
+    const roleNameMap: Record<UserRole, string> = {
+      super_admin: 'ผู้ดูแลระบบสารสนเทศ (Super Admin)',
+      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร',
+      technician: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
+      department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
+    };
+
+    const targetRole = role || target.role;
+    const defaultMenus: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
+      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
+      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
+      department_staff: ['dashboard', 'assets', 'work-orders']
+    };
 
     const updatedUser: SystemUser = {
       ...target,
       status: 'active',
+      role: targetRole,
+      roleName: roleNameMap[targetRole] || target.roleName,
+      allowedMenus: allowedMenus && allowedMenus.length > 0 ? allowedMenus : (target.allowedMenus || defaultMenus[targetRole]),
       approvedDate: new Date().toLocaleString('th-TH'),
       approvedBy: currentUser?.fullName || 'ผู้ดูแลระบบสารสนเทศ (Admin)'
     };
 
     setSystemUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    await saveUserToFirestore(updatedUser);
+  };
+
+  const updateUserPermissions = async (
+    userId: string,
+    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[],
+    role?: UserRole
+  ) => {
+    const target = systemUsers.find(u => u.id === userId);
+    if (!target) return;
+
+    const roleNameMap: Record<UserRole, string> = {
+      super_admin: 'ผู้ดูแลระบบสารสนเทศ (Super Admin)',
+      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร',
+      technician: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
+      department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
+    };
+
+    const targetRole = role || target.role;
+    const updatedUser: SystemUser = {
+      ...target,
+      role: targetRole,
+      roleName: roleNameMap[targetRole] || target.roleName,
+      allowedMenus
+    };
+
+    setSystemUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    if (currentUser?.id === userId) {
+      setCurrentUser(updatedUser);
+      localStorage.setItem('skh_current_user', JSON.stringify(updatedUser));
+    }
     await saveUserToFirestore(updatedUser);
   };
 
@@ -721,6 +833,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         registerUser,
         approveUser,
+        updateUserPermissions,
         rejectUser,
         clearAllSampleData,
         loadSampleData,

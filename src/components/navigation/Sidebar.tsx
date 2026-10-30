@@ -40,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     pmRecords, 
     spareParts, 
     assets,
+    currentUser,
     resetAllData 
   } = useApp();
 
@@ -142,6 +143,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  // Filter accessible menus strictly by Admin-assigned permissions
+  const visibleNavItems = navItems.filter((item) => {
+    // If not logged in, show basic public/guest menus
+    if (!currentUser) return ['dashboard', 'assets', 'work-orders'].includes(item.id);
+    // Super Admin has full unrestricted access to all 7 menus
+    if (currentUser.role === 'super_admin') return true;
+    // workforce tab is strictly restricted to super_admin
+    if (item.id === 'workforce') return false;
+    // If user has specific allowedMenus configured by Admin
+    if (currentUser.allowedMenus && currentUser.allowedMenus.length > 0) {
+      return currentUser.allowedMenus.includes(item.id);
+    }
+    // Fallback role defaults
+    if (currentUser.role === 'supervisor') return true;
+    if (currentUser.role === 'technician') return ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'].includes(item.id);
+    return ['dashboard', 'assets', 'work-orders'].includes(item.id);
+  });
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -224,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <nav className="space-y-1">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive = activeTab === item.id;
                 const IconComponent = item.icon;
 
@@ -296,21 +315,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                วร
+                {currentUser?.fullName?.split(' ')[0]?.slice(0, 2) || 'SK'}
               </div>
               <div className="truncate text-xs">
-                <div className="font-bold text-slate-200 truncate">วรพจน์ ธนสารพาณิชย์</div>
-                <div className="text-[10px] text-purple-400 font-medium">Super Admin · IT</div>
+                <div className="font-bold text-slate-200 truncate">{currentUser?.fullName || 'ผู้ใช้งานระบบ'}</div>
+                <div className="text-[10px] text-purple-400 font-medium truncate">
+                  {currentUser?.role === 'super_admin' ? 'Super Admin · IT' : currentUser?.roleName || 'ผู้ใช้ระบบ'}
+                </div>
               </div>
             </div>
 
             <button
-              onClick={() => {
-                if (window.confirm('คุณต้องการรีเซ็ตข้อมูลตัวอย่างทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) {
-                  resetAllData();
-                }
-              }}
-              title="รีเซ็ตข้อมูลตัวอย่าง (Reset Data)"
+              onClick={() => resetAllData()}
+              title="รีเซ็ตข้อมูลระบบกลับค่าเริ่มต้น"
               className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer shrink-0"
             >
               <RotateCcw className="w-4 h-4" />

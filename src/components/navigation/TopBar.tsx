@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Menu, 
   Bell, 
@@ -48,6 +48,8 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   // Pending user approvals
   const pendingApprovals = systemUsers.filter(u => u.status === 'pending');
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Active emergency & urgent count
   const emergencyOrders = workOrders.filter(
@@ -215,11 +217,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* Clear Sample Data to Empty Database Button */}
           {(assets.length > 0 || workOrders.length > 0) && (
             <button
-              onClick={() => {
-                if (window.confirm('คุณต้องการลบข้อมูลตัวอย่างทั้งหมดให้เป็นฐานข้อมูลเปล่า เพื่อเตรียมบันทึกข้อมูลจริงใช่หรือไม่?')) {
-                  clearAllSampleData();
-                }
-              }}
+              onClick={() => setIsClearModalOpen(true)}
               className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition text-xs font-medium cursor-pointer"
               title="ล้างข้อมูลตัวอย่างให้เป็นฐานเปล่าพร้อมใช้งานจริง"
             >
@@ -271,6 +269,47 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* In-App Confirmation Modal: Clean Database */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 shadow-inner">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-center text-slate-900 font-display">
+              ยืนยันการล้างข้อมูลเป็นฐานเปล่า?
+            </h3>
+            <p className="text-xs text-slate-600 text-center mt-2 leading-relaxed">
+              ระบบจะทำการลบข้อมูลครุภัณฑ์และใบแจ้งซ่อมตัวอย่างทั้งหมดออกจากระบบและ Cloud Firebase Firestore เพื่อให้เป็นฐานข้อมูลว่างเปล่า 100% สำหรับการบันทึกข้อมูลจริงของโรงพยาบาลสังขละบุรี
+            </p>
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={() => setIsClearModalOpen(false)}
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={async () => {
+                  setIsClearing(true);
+                  await clearAllSampleData();
+                  setIsClearing(false);
+                  setIsClearModalOpen(false);
+                }}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-rose-600/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isClearing ? 'กำลังล้าง...' : 'ยืนยันล้างข้อมูลทันที'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
