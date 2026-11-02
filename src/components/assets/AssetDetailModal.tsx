@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   QrCode, 
@@ -11,12 +11,14 @@ import {
   Tag, 
   AlertCircle,
   FileText,
-  Wind
+  Wind,
+  Edit3
 } from 'lucide-react';
 import { Asset, WorkOrder, PMRecord } from '../../types';
 import { QRCodeView } from '../common/QRCodeView';
 import { useApp } from '../../context/AppContext';
 import { ASSET_CATEGORIES_CONFIG } from '../../data/mockData';
+import { EditAssetModal } from './EditAssetModal';
 
 export const AssetDetailModal: React.FC<{
   asset: Asset;
@@ -25,6 +27,7 @@ export const AssetDetailModal: React.FC<{
   onOpenNewRepairForAsset: (asset: Asset) => void;
 }> = ({ asset, onClose, onOpenQRBadge, onOpenNewRepairForAsset }) => {
   const { workOrders, pmRecords, setSelectedOrderForDetail, setSelectedOrderForPrint, setSelectedAssetForLedger } = useApp();
+  const [isEditing, setIsEditing] = useState(false);
 
   const assetWorkOrders = workOrders.filter(w => w.assetId === asset.id || w.assetCode === asset.code);
   const assetPMRecords = pmRecords.filter(p => p.assetId === asset.id || p.assetCode === asset.code);
@@ -92,6 +95,14 @@ export const AssetDetailModal: React.FC<{
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 rounded-lg font-medium transition cursor-pointer"
+                title="แก้ไขหรือเติมเต็มข้อมูลครุภัณฑ์"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                <span>แก้ไขข้อมูล</span>
+              </button>
               <button
                 onClick={() => onOpenNewRepairForAsset(asset)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium transition cursor-pointer"
@@ -314,6 +325,11 @@ export const AssetDetailModal: React.FC<{
             )}
           </div>
         </div>
+
+        {/* Edit Asset Modal */}
+        {isEditing && (
+          <EditAssetModal asset={asset} onClose={() => setIsEditing(false)} />
+        )}
       </div>
     </div>
   );

@@ -221,12 +221,16 @@ export function subscribeToAssets(onUpdate: (assets: Asset[]) => void): () => vo
 
 export async function batchSyncAssetsToFirestore(assets: Asset[]): Promise<void> {
   try {
-    const batch = writeBatch(db);
-    for (const asset of assets) {
-      const docRef = doc(db, ASSETS_COLLECTION, asset.id);
-      batch.set(docRef, { ...asset, syncedAt: new Date().toISOString() }, { merge: true });
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < assets.length; i += CHUNK_SIZE) {
+      const chunk = assets.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      for (const asset of chunk) {
+        const docRef = doc(db, ASSETS_COLLECTION, asset.id);
+        batch.set(docRef, { ...asset, syncedAt: new Date().toISOString() }, { merge: true });
+      }
+      await batch.commit();
     }
-    await batch.commit();
     console.log(`[Firebase] Batch uploaded ${assets.length} assets to Firestore.`);
   } catch (error) {
     console.error('[Firebase] Batch assets upload failed:', error);

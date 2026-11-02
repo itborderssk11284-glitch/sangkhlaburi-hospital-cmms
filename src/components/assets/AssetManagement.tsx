@@ -15,12 +15,14 @@ import {
   ScanLine,
   TrendingUp,
   FileSpreadsheet,
-  Wind
+  Wind,
+  Edit3
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Asset, AssetCategory, CriticalityLevel, AssetStatus } from '../../types';
 import { HOSPITAL_DEPARTMENTS, ASSET_CATEGORIES_CONFIG } from '../../data/mockData';
 import { NewAssetModal } from './NewAssetModal';
+import { EditAssetModal } from './EditAssetModal';
 import { ProcurementPlanReportModal } from './ProcurementPlanReportModal';
 import { BatchAssetLedgerModal } from './BatchAssetLedgerModal';
 import { ImportAssetModal } from './ImportAssetModal';
@@ -45,6 +47,7 @@ export const AssetManagement: React.FC<{
   const [isProcurementModalOpen, setIsProcurementModalOpen] = useState(false);
   const [isBatchLedgerModalOpen, setIsBatchLedgerModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [scannerSimulationInput, setScannerSimulationInput] = useState('');
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
@@ -181,10 +184,10 @@ export const AssetManagement: React.FC<{
             <button
               onClick={() => setIsImportModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition shadow-2xs cursor-pointer"
-              title="นำเข้าข้อมูลทะเบียนครุภัณฑ์จากไฟล์ CSV หรือ Excel"
+              title="นำเข้าข้อมูลทะเบียนครุภัณฑ์จากไฟล์ Excel (.xlsx), PDF (.pdf) หรือ CSV"
             >
               <Upload className="w-3.5 h-3.5 text-emerald-700" />
-              <span>นำเข้าข้อมูล</span>
+              <span>นำเข้าข้อมูล (Excel / PDF)</span>
             </button>
 
             <button
@@ -408,6 +411,14 @@ export const AssetManagement: React.FC<{
                           </button>
 
                           <button
+                            onClick={() => setEditingAsset(asset)}
+                            title="แก้ไขและเติมเต็มข้อมูลครุภัณฑ์"
+                            className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          <button
                             onClick={() => setSelectedAssetForLedger(asset)}
                             title="พิมพ์แบบฟอร์มทะเบียนคุมทรัพย์สิน (ตามแบบ สธ.)"
                             className="p-1.5 text-slate-600 hover:text-teal-700 hover:bg-teal-50 rounded transition cursor-pointer"
@@ -444,6 +455,11 @@ export const AssetManagement: React.FC<{
       {/* New Asset Modal */}
       {isNewAssetModalOpen && (
         <NewAssetModal onClose={() => setIsNewAssetModalOpen(false)} />
+      )}
+
+      {/* Edit Asset Modal */}
+      {editingAsset && (
+        <EditAssetModal asset={editingAsset} onClose={() => setEditingAsset(null)} />
       )}
 
       {/* Annual Procurement & Replacement Justification Report Modal */}
