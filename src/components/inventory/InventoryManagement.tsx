@@ -11,13 +11,15 @@ import {
   MapPin, 
   Tag, 
   X,
-  TrendingDown
+  TrendingDown,
+  Trash2,
+  Database
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SparePart } from '../../types';
 
 export const InventoryManagement: React.FC = () => {
-  const { spareParts, addSparePart, restockPart } = useApp();
+  const { spareParts, addSparePart, restockPart, deleteSparePart } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ทั้งหมด');
@@ -26,6 +28,9 @@ export const InventoryManagement: React.FC = () => {
   // Restock modal
   const [restockTargetPart, setRestockTargetPart] = useState<SparePart | null>(null);
   const [restockQty, setRestockQty] = useState(5);
+
+  // Delete modal
+  const [deleteTargetPart, setDeleteTargetPart] = useState<SparePart | null>(null);
 
   // New part modal
   const [isNewPartModalOpen, setIsNewPartModalOpen] = useState(false);
@@ -245,8 +250,30 @@ export const InventoryManagement: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredParts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    ไม่พบรายการอะไหล่ตามเงื่อนไข
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2.5">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                        <PackageSearch className="w-6 h-6" />
+                      </div>
+                      <p className="font-bold text-slate-800 text-sm">
+                        {spareParts.length === 0 ? 'คลังอะไหล่ว่างเปล่า 100%' : 'ไม่พบรายการอะไหล่ตามเงื่อนไขค้นหา'}
+                      </p>
+                      <p className="text-xs text-slate-500 max-w-md">
+                        {spareParts.length === 0 
+                          ? 'ฐานข้อมูลตัวอย่างถูกลบออกแล้ว พร้อมสำหรับบันทึกรายการอะไหล่จริงของโรงพยาบาลสังขละบุรี (บันทึกข้อมูลลิงค์ Firebase Firestore อัตโนมัติ)'
+                          : 'ลองเปลี่ยนคำค้นหาหรือตัวกรองหมวดหมู่อะไหล่'}
+                      </p>
+                      {spareParts.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsNewPartModalOpen(true)}
+                          className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>+ เพิ่มรายการอะไหล่ชิ้นแรก</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -289,15 +316,27 @@ export const InventoryManagement: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => {
-                            setRestockTargetPart(part);
-                            setRestockQty(5);
-                          }}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded font-semibold text-xs border border-emerald-200 transition cursor-pointer"
-                        >
-                          รับเข้าสต็อก (+)
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRestockTargetPart(part);
+                              setRestockQty(5);
+                            }}
+                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-semibold text-xs border border-emerald-200 transition cursor-pointer"
+                            title="รับเข้าสต็อก"
+                          >
+                            รับเข้า (+)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTargetPart(part)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="ลบรายการอะไหล่นี้"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -502,6 +541,45 @@ export const InventoryManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Spare Part In-App Modal */}
+      {deleteTargetPart && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">ยืนยันการลบรายการอะไหล่</h3>
+                <p className="text-[11px] text-slate-500 font-mono">{deleteTargetPart.code}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              คุณต้องการลบรายการ <strong className="text-slate-800 font-semibold">{deleteTargetPart.name}</strong> ออกจากระบบคลังอะไหล่และฐานข้อมูล Firebase หรือไม่?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetPart(null)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteSparePart(deleteTargetPart.id);
+                  setDeleteTargetPart(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
+              >
+                ยืนยันลบรายการ
+              </button>
+            </div>
           </div>
         </div>
       )}

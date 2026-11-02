@@ -19,14 +19,26 @@ import {
   INITIAL_SPARE_PARTS, 
   INITIAL_TECHNICIANS,
   INITIAL_SYSTEM_USERS,
-  DEFAULT_ADMIN_USER
+  DEFAULT_ADMIN_USER,
+  SAMPLE_SPARE_PARTS_FOR_DEMO,
+  SAMPLE_TECHNICIANS_FOR_DEMO,
+  SAMPLE_USERS_FOR_DEMO
 } from '../data/mockData';
 import {
   saveWorkOrderToFirestore,
   subscribeToWorkOrders,
   saveAssetToFirestore,
   subscribeToAssets,
+  saveSparePartToFirestore,
+  deleteSparePartFromFirestore,
+  subscribeToSpareParts,
+  batchSyncSparePartsToFirestore,
+  saveTechnicianToFirestore,
+  deleteTechnicianFromFirestore,
+  subscribeToTechnicians,
+  batchSyncTechniciansToFirestore,
   saveUserToFirestore,
+  deleteUserFromFirestore,
   subscribeToUsers,
   batchSyncUsersToFirestore,
   clearFirestoreData,
@@ -76,6 +88,17 @@ interface AppContextType {
     role: UserRole;
     phone: string;
   }) => Promise<{ success: boolean; message?: string }>;
+  addUserByAdmin: (data: {
+    username: string;
+    fullName: string;
+    password?: string;
+    role: UserRole;
+    department: string;
+    phone: string;
+    email?: string;
+    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
+  }) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
   approveUser: (
     userId: string, 
     allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
@@ -107,8 +130,11 @@ interface AppContextType {
   completePMRecord: (id: string, overallResult: 'pass' | 'conditional_pass' | 'fail', deviation?: string, notes?: string) => void;
 
   addSparePart: (part: Omit<SparePart, 'id'>) => void;
+  deleteSparePart: (id: string) => Promise<void>;
   restockPart: (id: string, quantity: number) => void;
 
+  addTechnician: (tech: Omit<Technician, 'id' | 'activeTicketsCount' | 'completedTicketsCount'>) => Promise<void>;
+  deleteTechnician: (id: string) => Promise<void>;
   updateTechStatus: (id: string, status: 'available' | 'busy' | 'leave') => void;
   updateUserStatus: (id: string, status: 'active' | 'suspended') => void;
   resetAllData: () => void;
@@ -128,10 +154,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return !localStorage.getItem('skh_current_user');
   });
 
-  // Local storage state initialization (Default to empty [] for real hospital operation)
+  // Local storage state initialization (Default to clean empty database for real hospital operations)
   const [assets, setAssets] = useState<Asset[]>(() => {
     const saved = localStorage.getItem('skh_assets');
-    // If empty or explicitly cleared, start blank
     return saved !== null ? JSON.parse(saved) : [];
   });
 
@@ -147,12 +172,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [spareParts, setSpareParts] = useState<SparePart[]>(() => {
     const saved = localStorage.getItem('skh_spare_parts');
-    return saved ? JSON.parse(saved) : INITIAL_SPARE_PARTS;
+    return saved !== null ? JSON.parse(saved) : INITIAL_SPARE_PARTS;
   });
 
   const [technicians, setTechnicians] = useState<Technician[]>(() => {
     const saved = localStorage.getItem('skh_technicians');
-    return saved ? JSON.parse(saved) : INITIAL_TECHNICIANS;
+    return saved !== null ? JSON.parse(saved) : INITIAL_TECHNICIANS;
   });
 
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => {
@@ -163,7 +188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!hasAdmin) {
         return [DEFAULT_ADMIN_USER, ...list];
       }
-      return list.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'admin1234', status: 'active' as UserStatus } : u);
+      return list.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'sskhos', status: 'active' as UserStatus } : u);
     } catch {
       return INITIAL_SYSTEM_USERS;
     }
@@ -212,20 +237,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFirebaseSyncStatus('synced');
     });
 
-    // 3. Subscribe to real-time users (new registrations & approvals)
+    // 3. Subscribe to real-time spare parts (คลังอะไหล่)
+    const unsubParts = subscribeToSpareParts((remoteParts) => {
+      if (!isMounted) return;
+      setSpareParts(remoteParts);
+      setFirebaseConnected(true);
+    });
+
+    // 4. Subscribe to real-time technicians (ทีมช่าง)
+    const unsubTechs = subscribeToTechnicians((remoteTechs) => {
+      if (!isMounted) return;
+      setTechnicians(remoteTechs);
+      setFirebaseConnected(true);
+    });
+
+    // 5. Subscribe to real-time users (ผู้ใช้งานระบบและการกำหนดสิทธิ์)
     const unsubUsers = subscribeToUsers((remoteUsers) => {
       if (!isMounted || !remoteUsers) return;
       const hasAdmin = remoteUsers.some(u => u.username.toLowerCase() === 'admin');
       const finalUsers: SystemUser[] = hasAdmin
-        ? remoteUsers.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'admin1234', status: 'active' as UserStatus } : u)
+        ? remoteUsers.map(u => u.username.toLowerCase() === 'admin' ? { ...u, password: 'sskhos', status: 'active' as UserStatus } : u)
         : [DEFAULT_ADMIN_USER, ...remoteUsers];
       setSystemUsers(finalUsers);
+      setFirebaseConnected(true);
     });
 
     return () => {
       isMounted = false;
       unsubOrders();
       unsubAssets();
+      unsubParts();
+      unsubTechs();
       unsubUsers();
     };
   }, []);
@@ -255,7 +297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('skh_system_users', JSON.stringify(systemUsers));
   }, [systemUsers]);
 
-  // Cloud sync function for single work order
+  // Sync new work order to cloud
   const syncWorkOrderToCloud = async (order: WorkOrder) => {
     setFirebaseSyncStatus('syncing');
     try {
@@ -263,88 +305,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFirebaseSyncStatus('synced');
       setFirebaseConnected(true);
       setLastSyncedTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    } catch (err) {
-      console.warn('[Firebase] Sync failed, saved locally:', err);
+    } catch (error) {
+      console.warn('Failed to sync order to cloud:', error);
       setFirebaseSyncStatus('error');
     }
   };
 
-  // Sync all data to Cloud
+  // Sync all data to cloud manually
   const syncAllDataToCloud = async () => {
     setFirebaseSyncStatus('syncing');
     try {
       await batchSyncWorkOrdersToFirestore(workOrders);
       await batchSyncAssetsToFirestore(assets);
+      await batchSyncSparePartsToFirestore(spareParts);
+      await batchSyncTechniciansToFirestore(technicians);
       await batchSyncUsersToFirestore(systemUsers);
       setFirebaseSyncStatus('synced');
       setFirebaseConnected(true);
       setLastSyncedTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    } catch (err) {
-      console.error('[Firebase] Manual batch sync failed:', err);
+    } catch (error) {
+      console.warn('Manual sync failed:', error);
       setFirebaseSyncStatus('error');
     }
   };
 
   // Authentication Handlers
   const login = (username: string, password?: string): { success: boolean; message?: string } => {
-    const cleanUser = (username || '').trim().toLowerCase();
-    const cleanPass = (password || '').trim();
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password?.trim() || '';
 
-    // 1. Admin login verification: username: admin, password: sskhos
-    if (cleanUser === 'admin') {
-      if (cleanPass !== 'sskhos') {
-        return { success: false, message: 'รหัสผ่านผู้ดูแลระบบ (Admin) ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
+    // 1. Strict check for Admin credentials (admin / sskhos)
+    if (cleanUsername === 'admin') {
+      if (cleanPassword === 'sskhos') {
+        const adminAccount: SystemUser = {
+          ...DEFAULT_ADMIN_USER,
+          lastLogin: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+        };
+        setCurrentUser(adminAccount);
+        localStorage.setItem('skh_current_user', JSON.stringify(adminAccount));
+        setIsAuthModalOpen(false);
+        saveUserToFirestore(adminAccount).catch(console.warn);
+        return { success: true };
+      } else {
+        return { success: false, message: 'รหัสผ่านแอดมินไม่ถูกต้อง (กรุณากรอกรหัสผ่านที่กำหนด)' };
       }
-      const adminUser: SystemUser = {
-        ...DEFAULT_ADMIN_USER,
-        status: 'active',
-        lastLogin: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toTimeString().slice(0, 5)
-      };
-      setCurrentUser(adminUser);
-      setIsAuthModalOpen(false);
-      localStorage.setItem('skh_current_user', JSON.stringify(adminUser));
-      setSystemUsers(prev => {
-        const withoutAdmin = prev.filter(u => u.username.toLowerCase() !== 'admin');
-        const next = [adminUser, ...withoutAdmin];
-        localStorage.setItem('skh_system_users', JSON.stringify(next));
-        return next;
-      });
-      saveUserToFirestore(adminUser).catch(console.warn);
-      return { success: true };
     }
 
-    const user = systemUsers.find(u => u.username.toLowerCase() === cleanUser);
+    // 2. Regular User Login
+    const user = systemUsers.find(u => u.username.toLowerCase() === cleanUsername);
     if (!user) {
-      return { success: false, message: 'ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้หรือสมัครขอเข้าใช้งาน' };
-    }
-    
-    // Check password
-    if (user.password && cleanPass && user.password !== cleanPass) {
-      return { success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
+      return { success: false, message: 'ไม่พบชื่อผู้ใช้งานนี้ในระบบ หรือยังไม่ได้รับการอนุมัติ' };
     }
 
-    // Check approval status
     if (user.status === 'pending') {
       return { 
         success: false, 
-        message: 'บัญชีของท่านอยู่ระหว่างรอการตรวจสอบและอนุมัติสิทธิ์เข้าใช้งานจากแอดมิน (Admin Approval Required)' 
-      };
-    }
-    if (user.status === 'suspended' || user.status === 'rejected') {
-      return { 
-        success: false, 
-        message: 'บัญชีนี้ถูกระงับหรือปฏิเสธการใช้งาน กรุณาติดต่อผู้ดูแลระบบสารสนเทศ' 
+        message: 'บัญชีของคุณอยู่ระหว่างรอการตรวจสอบและอนุมัติจากผู้ดูแลระบบ (Admin) กรุณาติดต่อกลุ่มงานสารสนเทศ' 
       };
     }
 
-    // Login successful
-    const updatedUser = { 
-      ...user, 
-      lastLogin: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toTimeString().slice(0, 5) 
+    if (user.status === 'suspended' || user.status === 'rejected') {
+      return { success: false, message: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' };
+    }
+
+    // Check user password if set
+    if (user.password && cleanPassword && user.password !== cleanPassword) {
+      return { success: false, message: 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง' };
+    }
+
+    const updatedUser = {
+      ...user,
+      lastLogin: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
     };
     setCurrentUser(updatedUser);
-    setIsAuthModalOpen(false);
     localStorage.setItem('skh_current_user', JSON.stringify(updatedUser));
+    setIsAuthModalOpen(false);
     saveUserToFirestore(updatedUser).catch(console.warn);
     return { success: true };
   };
@@ -365,7 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }): Promise<{ success: boolean; message?: string }> => {
     const existing = systemUsers.find(u => u.username.toLowerCase() === data.username.toLowerCase());
     if (existing) {
-      return { success: false, message: 'ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น' };
+      return { success: false, message: 'ชื่อผู้ใช้งานนี้มีในระบบแล้ว กรุณาเลือกชื่อผู้ใช้ใหม่' };
     }
 
     const roleNameMap: Record<UserRole, string> = {
@@ -376,9 +411,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const permissionsMap: Record<UserRole, string[]> = {
-      super_admin: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export'],
+      super_admin: ['all_access'],
       supervisor: ['repair_assign', 'repair_approve', 'pm_manage', 'inventory_issue', 'report_export'],
-      technician: ['repair_update', 'pm_execute', 'part_request'],
+      technician: ['repair_update', 'pm_execute', 'calibration_cert', 'part_request'],
       department_staff: ['repair_create', 'repair_inspect', 'asset_view']
     };
 
@@ -390,12 +425,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const newUser: SystemUser = {
-      id: `usr-${Date.now().toString().slice(-6)}`,
-      username: data.username.toLowerCase(),
-      password: data.password || '123456',
-      fullName: data.fullName,
+      id: `usr-${Date.now().toString().slice(-4)}`,
+      username: data.username.toLowerCase().trim(),
+      password: data.password || 'sskhos',
+      fullName: data.fullName.trim(),
       role: data.role,
-      roleName: roleNameMap[data.role] || 'ผู้ใช้งานระบบ',
+      roleName: roleNameMap[data.role] || 'เจ้าหน้าที่ผู้ใช้งาน',
       department: data.department,
       phone: data.phone,
       email: `${data.username.toLowerCase()}@skh.moph.go.th`,
@@ -408,6 +443,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSystemUsers(prev => [newUser, ...prev]);
     await saveUserToFirestore(newUser);
     return { success: true };
+  };
+
+  // Add User by Admin (เพิ่มผู้ใช้โดยแอดมินเท่านั้น พร้อมบันทึก Firebase อัตโนมัติ)
+  const addUserByAdmin = async (userData: {
+    username: string;
+    fullName: string;
+    password?: string;
+    role: UserRole;
+    department: string;
+    phone: string;
+    email?: string;
+    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
+  }) => {
+    const roleNameMap: Record<UserRole, string> = {
+      super_admin: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
+      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร (Supervisor)',
+      technician: 'ช่างเทคนิค/วิศวกรชีวการแพทย์ (Technician)',
+      department_staff: 'บุคลากรประจำแผนกผู้แจ้งซ่อม (Department Staff)'
+    };
+
+    const defaultMenusMap: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
+      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
+      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
+      department_staff: ['dashboard', 'assets', 'work-orders']
+    };
+
+    const newUser: SystemUser = {
+      id: `usr-${Date.now().toString().slice(-4)}`,
+      username: userData.username.toLowerCase().trim(),
+      password: userData.password || 'sskhos',
+      fullName: userData.fullName.trim(),
+      role: userData.role,
+      roleName: roleNameMap[userData.role] || 'บุคลากรโรงพยาบาลสังขละบุรี',
+      department: userData.department,
+      phone: userData.phone || '034-595021',
+      email: userData.email || `${userData.username.toLowerCase()}@skh.moph.go.th`,
+      status: 'active',
+      lastLogin: 'เพิ่งสร้างบัญชี',
+      permissions: userData.role === 'super_admin' ? ['all_access'] : ['repair_manage', 'asset_view'],
+      allowedMenus: userData.allowedMenus || defaultMenusMap[userData.role]
+    };
+
+    setSystemUsers(prev => [newUser, ...prev.filter(u => u.username !== newUser.username)]);
+    await saveUserToFirestore(newUser);
+
+    // If role is technician, automatically register in technicians list as well
+    if (userData.role === 'technician') {
+      const newTech: Technician = {
+        id: `tech-${newUser.id}`,
+        name: newUser.fullName,
+        role: 'biomedical',
+        roleTitle: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
+        phone: newUser.phone,
+        email: newUser.email,
+        status: 'available',
+        activeTicketsCount: 0,
+        completedTicketsCount: 0,
+        avatarColor: 'bg-emerald-700'
+      };
+      setTechnicians(prev => [newTech, ...prev.filter(t => t.name !== newTech.name)]);
+      await saveTechnicianToFirestore(newTech);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    const target = systemUsers.find(u => u.id === userId);
+    if (!target) return;
+    if (target.username.toLowerCase() === 'admin') {
+      console.warn('Cannot delete primary admin user.');
+      return;
+    }
+    setSystemUsers(prev => prev.filter(u => u.id !== userId));
+    await deleteUserFromFirestore(userId);
   };
 
   const approveUser = async (
@@ -445,11 +554,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setSystemUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
     await saveUserToFirestore(updatedUser);
+
+    if (targetRole === 'technician') {
+      const existingTech = technicians.find(t => t.id === `tech-${userId}` || t.name === updatedUser.fullName);
+      if (!existingTech) {
+        const newTech: Technician = {
+          id: `tech-${userId}`,
+          name: updatedUser.fullName,
+          role: 'biomedical',
+          roleTitle: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
+          phone: updatedUser.phone,
+          email: updatedUser.email,
+          status: 'available',
+          activeTicketsCount: 0,
+          completedTicketsCount: 0,
+          avatarColor: 'bg-emerald-700'
+        };
+        setTechnicians(prev => [newTech, ...prev]);
+        await saveTechnicianToFirestore(newTech);
+      }
+    }
   };
 
   const updateUserPermissions = async (
-    userId: string,
-    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[],
+    userId: string, 
+    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
     role?: UserRole
   ) => {
     const target = systemUsers.find(u => u.id === userId);
@@ -462,19 +591,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
     };
 
-    const targetRole = role || target.role;
     const updatedUser: SystemUser = {
       ...target,
-      role: targetRole,
-      roleName: roleNameMap[targetRole] || target.roleName,
+      role: role || target.role,
+      roleName: role ? (roleNameMap[role] || target.roleName) : target.roleName,
       allowedMenus
     };
 
     setSystemUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-    if (currentUser?.id === userId) {
-      setCurrentUser(updatedUser);
-      localStorage.setItem('skh_current_user', JSON.stringify(updatedUser));
-    }
     await saveUserToFirestore(updatedUser);
   };
 
@@ -491,15 +615,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await saveUserToFirestore(updatedUser);
   };
 
-  // Clean Empty Production Database
+  // Clean Empty Production Database (ล้างเป็นฐานเปล่า 100% พร้อมบันทึกข้อมูลจริง)
   const clearAllSampleData = async () => {
     setAssets([]);
     setWorkOrders([]);
     setPmRecords([]);
+    setSpareParts([]);
+    setTechnicians([]);
+    setSystemUsers([DEFAULT_ADMIN_USER]);
+
     localStorage.setItem('skh_assets', JSON.stringify([]));
     localStorage.setItem('skh_work_orders', JSON.stringify([]));
     localStorage.setItem('skh_pm_records', JSON.stringify([]));
+    localStorage.setItem('skh_spare_parts', JSON.stringify([]));
+    localStorage.setItem('skh_technicians', JSON.stringify([]));
+    localStorage.setItem('skh_system_users', JSON.stringify([DEFAULT_ADMIN_USER]));
     localStorage.setItem('skh_database_cleared', 'true');
+
     await clearFirestoreData();
     setLastSyncedTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   };
@@ -508,9 +640,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAssets(INITIAL_ASSETS);
     setWorkOrders(INITIAL_WORK_ORDERS);
     setPmRecords(INITIAL_PM_RECORDS);
+    setSpareParts(SAMPLE_SPARE_PARTS_FOR_DEMO);
+    setTechnicians(SAMPLE_TECHNICIANS_FOR_DEMO);
+    setSystemUsers([DEFAULT_ADMIN_USER, ...SAMPLE_USERS_FOR_DEMO]);
     localStorage.removeItem('skh_database_cleared');
+
     await batchSyncWorkOrdersToFirestore(INITIAL_WORK_ORDERS);
     await batchSyncAssetsToFirestore(INITIAL_ASSETS);
+    await batchSyncSparePartsToFirestore(SAMPLE_SPARE_PARTS_FOR_DEMO);
+    await batchSyncTechniciansToFirestore(SAMPLE_TECHNICIANS_FOR_DEMO);
+    await batchSyncUsersToFirestore([DEFAULT_ADMIN_USER, ...SAMPLE_USERS_FOR_DEMO]);
     setLastSyncedTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   };
 
@@ -577,20 +716,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalCost: 0,
     };
 
-    // 1. Optimistic Local State Update
     setWorkOrders(prev => [newOrder, ...prev]);
-
-    // 2. Also update asset status to in_repair if currently ready
     updateAsset(data.assetId, { status: 'in_repair' });
-
-    // 3. Automatically sync new work order to Firebase Firestore
     syncWorkOrderToCloud(newOrder);
   };
 
   const updateWorkOrderStatus = (id: string, status: WorkOrderStatus, notes?: string) => {
     const now = new Date();
     const dateStr = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`;
-
     let updatedTargetOrder: WorkOrder | null = null;
 
     setWorkOrders(prev => prev.map(wo => {
@@ -598,11 +731,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       const updates: Partial<WorkOrder> = { status };
       if (notes) updates.notes = (wo.notes ? `${wo.notes}\n` : '') + `[${dateStr}] ${notes}`;
-      
+
       if (status === 'in_progress' && !wo.repairStartDate) {
         updates.repairStartDate = dateStr;
-      }
-      if (status === 'completed' || status === 'testing') {
+      } else if (status === 'completed' && !wo.repairEndDate) {
         updates.repairEndDate = dateStr;
       }
 
@@ -611,21 +743,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return merged;
     }));
 
-    // If order is completed, update the asset back to ready
-    const order = workOrders.find(o => o.id === id);
-    if (order && status === 'completed') {
-      updateAsset(order.assetId, { status: 'ready' });
-    }
-
-    // Auto sync updated order to Firestore
     if (updatedTargetOrder) {
       syncWorkOrderToCloud(updatedTargetOrder);
+      const target = updatedTargetOrder as WorkOrder;
+      if (status === 'completed') {
+        updateAsset(target.assetId, { status: 'ready', lastRepairDate: dateStr.slice(0, 10) });
+      } else if (status === 'in_progress') {
+        updateAsset(target.assetId, { status: 'in_repair' });
+      }
     }
   };
 
   const updateWorkOrder = (id: string, updates: Partial<WorkOrder>) => {
     let updatedTargetOrder: WorkOrder | null = null;
-
     setWorkOrders(prev => prev.map(wo => {
       if (wo.id !== id) return wo;
       const merged = { ...wo, ...updates };
@@ -633,11 +763,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return merged;
     }));
 
-    if (selectedOrderForDetail?.id === id) {
-      setSelectedOrderForDetail(prev => prev ? { ...prev, ...updates } : null);
-    }
-
-    // Auto sync updated order to Firestore
     if (updatedTargetOrder) {
       syncWorkOrderToCloud(updatedTargetOrder);
     }
@@ -649,13 +774,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    // Deduct inventory
+    // Deduct part stock
+    let updatedPartRecord: SparePart | null = null;
     setSpareParts(prev => prev.map(p => {
-      if (p.id === partId) {
-        return { ...p, quantity: p.quantity - quantity };
-      }
-      return p;
+      if (p.id !== partId) return p;
+      const up = { ...p, quantity: p.quantity - quantity };
+      updatedPartRecord = up;
+      return up;
     }));
+    if (updatedPartRecord) {
+      saveSparePartToFirestore(updatedPartRecord).catch(console.warn);
+    }
 
     // Add to work order
     const usedPart: UsedPart = {
@@ -667,6 +796,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalPrice: part.unitPrice * quantity,
     };
 
+    let updatedTargetOrder: WorkOrder | null = null;
     setWorkOrders(prev => prev.map(wo => {
       if (wo.id !== orderId) return wo;
       const existingPartIndex = wo.usedParts.findIndex(up => up.partId === partId);
@@ -686,12 +816,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const totalPartsCost = newUsedParts.reduce((sum, p) => sum + p.totalPrice, 0);
       const totalCost = totalPartsCost + (wo.externalCost || 0);
 
-      return {
+      const merged = {
         ...wo,
         usedParts: newUsedParts,
         totalCost,
       };
+      updatedTargetOrder = merged;
+      return merged;
     }));
+
+    if (updatedTargetOrder) {
+      syncWorkOrderToCloud(updatedTargetOrder);
+    }
 
     return true;
   };
@@ -719,7 +855,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }));
 
-    // Update asset's lastPMDate
     const rec = pmRecords.find(r => r.id === id);
     if (rec) {
       const asset = assets.find(a => a.id === rec.assetId);
@@ -740,35 +875,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Spare Parts Actions
-  const addSparePart = (data: Omit<SparePart, 'id'>) => {
+  // Spare Parts Actions (คลังอะไหล่ - ลิงค์ Firebase อัตโนมัติ)
+  const addSparePart = async (data: Omit<SparePart, 'id'>) => {
     const newPart: SparePart = {
       ...data,
       id: `sp-${Date.now().toString().slice(-5)}`,
     };
     setSpareParts(prev => [...prev, newPart]);
+    await saveSparePartToFirestore(newPart);
   };
 
-  const restockPart = (id: string, quantity: number) => {
+  const deleteSparePart = async (id: string) => {
+    setSpareParts(prev => prev.filter(p => p.id !== id));
+    await deleteSparePartFromFirestore(id);
+  };
+
+  const restockPart = async (id: string, quantity: number) => {
     const today = new Date().toISOString().slice(0, 10);
+    let updatedPart: SparePart | null = null;
     setSpareParts(prev => prev.map(p => {
       if (p.id !== id) return p;
-      return {
+      const updated = {
         ...p,
         quantity: p.quantity + quantity,
         lastRestockedDate: today,
       };
+      updatedPart = updated;
+      return updated;
     }));
+    if (updatedPart) {
+      await saveSparePartToFirestore(updatedPart);
+    }
   };
 
-  // Technician Actions
-  const updateTechStatus = (id: string, status: 'available' | 'busy' | 'leave') => {
-    setTechnicians(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+  // Technician Actions (ทีมช่าง - ลิงค์ Firebase อัตโนมัติ)
+  const addTechnician = async (techData: Omit<Technician, 'id' | 'activeTicketsCount' | 'completedTicketsCount'>) => {
+    const newTech: Technician = {
+      ...techData,
+      id: `tech-${Date.now().toString().slice(-4)}`,
+      activeTicketsCount: 0,
+      completedTicketsCount: 0,
+    };
+    setTechnicians(prev => [newTech, ...prev]);
+    await saveTechnicianToFirestore(newTech);
   };
 
-  // User Actions
-  const updateUserStatus = (id: string, status: 'active' | 'suspended') => {
-    setSystemUsers(prev => prev.map(u => u.id === id ? { ...u, status } : u));
+  const deleteTechnician = async (id: string) => {
+    setTechnicians(prev => prev.filter(t => t.id !== id));
+    await deleteTechnicianFromFirestore(id);
+  };
+
+  const updateTechStatus = async (id: string, status: 'available' | 'busy' | 'leave') => {
+    let updatedTech: Technician | null = null;
+    setTechnicians(prev => prev.map(t => {
+      if (t.id === id) {
+        const up = { ...t, status };
+        updatedTech = up;
+        return up;
+      }
+      return t;
+    }));
+    if (updatedTech) {
+      await saveTechnicianToFirestore(updatedTech);
+    }
+  };
+
+  // User Actions (จัดการผู้ใช้ - ลิงค์ Firebase อัตโนมัติ)
+  const updateUserStatus = async (id: string, status: 'active' | 'suspended') => {
+    let updatedUser: SystemUser | null = null;
+    setSystemUsers(prev => prev.map(u => {
+      if (u.id === id) {
+        const up = { ...u, status };
+        updatedUser = up;
+        return up;
+      }
+      return u;
+    }));
+    if (updatedUser) {
+      await saveUserToFirestore(updatedUser);
+    }
   };
 
   const resetAllData = () => {
@@ -778,12 +963,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('skh_spare_parts');
     localStorage.removeItem('skh_technicians');
     localStorage.removeItem('skh_system_users');
-    setAssets(INITIAL_ASSETS);
-    setWorkOrders(INITIAL_WORK_ORDERS);
-    setPmRecords(INITIAL_PM_RECORDS);
-    setSpareParts(INITIAL_SPARE_PARTS);
-    setTechnicians(INITIAL_TECHNICIANS);
-    setSystemUsers(INITIAL_SYSTEM_USERS);
+    setAssets([]);
+    setWorkOrders([]);
+    setPmRecords([]);
+    setSpareParts([]);
+    setTechnicians([]);
+    setSystemUsers([DEFAULT_ADMIN_USER]);
   };
 
   return (
@@ -823,7 +1008,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addPMRecord,
         completePMRecord,
         addSparePart,
+        deleteSparePart,
         restockPart,
+        addTechnician,
+        deleteTechnician,
         updateTechStatus,
         updateUserStatus,
         currentUser,
@@ -832,6 +1020,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         registerUser,
+        addUserByAdmin,
+        deleteUser,
         approveUser,
         updateUserPermissions,
         rejectUser,

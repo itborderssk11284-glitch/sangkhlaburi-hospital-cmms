@@ -11,7 +11,8 @@ import {
   writeBatch,
   deleteDoc
 } from 'firebase/firestore';
-import type { WorkOrder, Asset, SystemUser } from '../types';
+import type { WorkOrder, Asset, SystemUser, SparePart, Technician } from '../types';
+import { DEFAULT_ADMIN_USER } from '../data/mockData';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App
@@ -85,10 +86,12 @@ export async function testConnection(): Promise<boolean> {
 export const WORK_ORDERS_COLLECTION = 'work_orders';
 export const ASSETS_COLLECTION = 'assets';
 export const USERS_COLLECTION = 'users';
+export const SPARE_PARTS_COLLECTION = 'spare_parts';
+export const TECHNICIANS_COLLECTION = 'technicians';
 
-/**
- * บันทึกใบแจ้งซ่อมใหม่หรืออัปเดตลง Firebase Firestore อัตโนมัติ (ข้ามเครื่อง)
- */
+// ==========================================
+// 1. WORK ORDERS
+// ==========================================
 export async function saveWorkOrderToFirestore(order: WorkOrder): Promise<void> {
   const docRef = doc(db, WORK_ORDERS_COLLECTION, order.id);
   try {
@@ -105,9 +108,64 @@ export async function saveWorkOrderToFirestore(order: WorkOrder): Promise<void> 
   }
 }
 
-/**
- * บันทึกหรืออัปเดตทะเบียนครุภัณฑ์ลง Firestore
- */
+export async function fetchWorkOrdersFromFirestore(): Promise<WorkOrder[]> {
+  try {
+    const colRef = collection(db, WORK_ORDERS_COLLECTION);
+    const snapshot = await getDocs(colRef);
+    const orders: WorkOrder[] = [];
+    snapshot.forEach(docSnap => {
+      orders.push(docSnap.data() as WorkOrder);
+    });
+    orders.sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
+    return orders;
+  } catch (error) {
+    console.warn('[Firebase] fetchWorkOrders error:', error);
+    return [];
+  }
+}
+
+export function subscribeToWorkOrders(onUpdate: (orders: WorkOrder[]) => void): () => void {
+  try {
+    const colRef = collection(db, WORK_ORDERS_COLLECTION);
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const orders: WorkOrder[] = [];
+        snapshot.forEach(docSnap => {
+          orders.push(docSnap.data() as WorkOrder);
+        });
+        orders.sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
+        onUpdate(orders);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, WORK_ORDERS_COLLECTION);
+      }
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.warn('[Firebase] Work order subscription failed:', error);
+    return () => {};
+  }
+}
+
+export async function batchSyncWorkOrdersToFirestore(orders: WorkOrder[]): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    for (const order of orders) {
+      const docRef = doc(db, WORK_ORDERS_COLLECTION, order.id);
+      batch.set(docRef, { ...order, syncedAt: new Date().toISOString() }, { merge: true });
+    }
+    await batch.commit();
+    console.log(`[Firebase] Batch uploaded ${orders.length} work orders to Firestore.`);
+  } catch (error) {
+    console.error('[Firebase] Batch work order upload failed:', error);
+    handleFirestoreError(error, OperationType.WRITE, WORK_ORDERS_COLLECTION);
+  }
+}
+
+// ==========================================
+// 2. ASSETS
+// ==========================================
 export async function saveAssetToFirestore(asset: Asset): Promise<void> {
   const docRef = doc(db, ASSETS_COLLECTION, asset.id);
   try {
@@ -123,29 +181,6 @@ export async function saveAssetToFirestore(asset: Asset): Promise<void> {
   }
 }
 
-/**
- * ดึงรายการใบแจ้งซ่อมทั้งหมดจาก Firestore
- */
-export async function fetchWorkOrdersFromFirestore(): Promise<WorkOrder[]> {
-  try {
-    const colRef = collection(db, WORK_ORDERS_COLLECTION);
-    const snapshot = await getDocs(colRef);
-    const orders: WorkOrder[] = [];
-    snapshot.forEach(docSnap => {
-      orders.push(docSnap.data() as WorkOrder);
-    });
-    // Sort descending by reportDate
-    orders.sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
-    return orders;
-  } catch (error) {
-    console.warn('[Firebase] fetchWorkOrders error:', error);
-    return [];
-  }
-}
-
-/**
- * ดึงรายการครุภัณฑ์ทั้งหมดจาก Firestore
- */
 export async function fetchAssetsFromFirestore(): Promise<Asset[]> {
   try {
     const colRef = collection(db, ASSETS_COLLECTION);
@@ -161,37 +196,6 @@ export async function fetchAssetsFromFirestore(): Promise<Asset[]> {
   }
 }
 
-/**
- * สมัครรับข้อมูล Realtime updates ใบแจ้งซ่อมจาก Firebase Firestore (รับข้อมูลสดเมื่อมีเครื่องอื่นบันทึก)
- */
-export function subscribeToWorkOrders(onUpdate: (orders: WorkOrder[]) => void): () => void {
-  try {
-    const colRef = collection(db, WORK_ORDERS_COLLECTION);
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        const orders: WorkOrder[] = [];
-        snapshot.forEach(docSnap => {
-          orders.push(docSnap.data() as WorkOrder);
-        });
-        // Sort descending by report date
-        orders.sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
-        onUpdate(orders);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, WORK_ORDERS_COLLECTION);
-      }
-    );
-    return unsubscribe;
-  } catch (error) {
-    console.warn('[Firebase] Work order subscription failed:', error);
-    return () => {};
-  }
-}
-
-/**
- * สมัครรับข้อมูล Realtime updates ครุภัณฑ์จาก Firebase Firestore
- */
 export function subscribeToAssets(onUpdate: (assets: Asset[]) => void): () => void {
   try {
     const colRef = collection(db, ASSETS_COLLECTION);
@@ -215,27 +219,6 @@ export function subscribeToAssets(onUpdate: (assets: Asset[]) => void): () => vo
   }
 }
 
-/**
- * ซิงค์ข้อมูลทั้งหมดขึ้น Firestore เมื่อมีการร้องขอหรือเปิดใช้งานครั้งแรก
- */
-export async function batchSyncWorkOrdersToFirestore(orders: WorkOrder[]): Promise<void> {
-  try {
-    const batch = writeBatch(db);
-    for (const order of orders) {
-      const docRef = doc(db, WORK_ORDERS_COLLECTION, order.id);
-      batch.set(docRef, { ...order, syncedAt: new Date().toISOString() }, { merge: true });
-    }
-    await batch.commit();
-    console.log(`[Firebase] Batch uploaded ${orders.length} work orders to Firestore.`);
-  } catch (error) {
-    console.error('[Firebase] Batch work order upload failed:', error);
-    handleFirestoreError(error, OperationType.WRITE, WORK_ORDERS_COLLECTION);
-  }
-}
-
-/**
- * ซิงค์ครุภัณฑ์ทั้งหมดขึ้น Firestore
- */
 export async function batchSyncAssetsToFirestore(assets: Asset[]): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -251,9 +234,175 @@ export async function batchSyncAssetsToFirestore(assets: Asset[]): Promise<void>
   }
 }
 
-/**
- * บันทึกหรืออัปเดตข้อมูลผู้ใช้งานลง Firestore
- */
+// ==========================================
+// 3. SPARE PARTS (คลังอะไหล่)
+// ==========================================
+export async function saveSparePartToFirestore(part: SparePart): Promise<void> {
+  const docRef = doc(db, SPARE_PARTS_COLLECTION, part.id);
+  try {
+    const payload = {
+      ...part,
+      syncedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(docRef, payload, { merge: true });
+    console.log(`[Firebase] Spare part ${part.code} synced to Firestore.`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to save spare part ${part.code}:`, error);
+    handleFirestoreError(error, OperationType.WRITE, `${SPARE_PARTS_COLLECTION}/${part.id}`);
+  }
+}
+
+export async function deleteSparePartFromFirestore(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, SPARE_PARTS_COLLECTION, id);
+    await deleteDoc(docRef);
+    console.log(`[Firebase] Deleted spare part ${id} from Firestore.`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to delete spare part ${id}:`, error);
+    handleFirestoreError(error, OperationType.DELETE, `${SPARE_PARTS_COLLECTION}/${id}`);
+  }
+}
+
+export async function fetchSparePartsFromFirestore(): Promise<SparePart[]> {
+  try {
+    const colRef = collection(db, SPARE_PARTS_COLLECTION);
+    const snapshot = await getDocs(colRef);
+    const parts: SparePart[] = [];
+    snapshot.forEach(docSnap => {
+      parts.push(docSnap.data() as SparePart);
+    });
+    return parts;
+  } catch (error) {
+    console.warn('[Firebase] fetchSpareParts error:', error);
+    return [];
+  }
+}
+
+export function subscribeToSpareParts(onUpdate: (parts: SparePart[]) => void): () => void {
+  try {
+    const colRef = collection(db, SPARE_PARTS_COLLECTION);
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const parts: SparePart[] = [];
+        snapshot.forEach(docSnap => {
+          parts.push(docSnap.data() as SparePart);
+        });
+        onUpdate(parts);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, SPARE_PARTS_COLLECTION);
+      }
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.warn('[Firebase] Spare parts subscription failed:', error);
+    return () => {};
+  }
+}
+
+export async function batchSyncSparePartsToFirestore(parts: SparePart[]): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    for (const part of parts) {
+      const docRef = doc(db, SPARE_PARTS_COLLECTION, part.id);
+      batch.set(docRef, { ...part, syncedAt: new Date().toISOString() }, { merge: true });
+    }
+    await batch.commit();
+    console.log(`[Firebase] Batch uploaded ${parts.length} spare parts to Firestore.`);
+  } catch (error) {
+    console.error('[Firebase] Batch spare parts upload failed:', error);
+    handleFirestoreError(error, OperationType.WRITE, SPARE_PARTS_COLLECTION);
+  }
+}
+
+// ==========================================
+// 4. TECHNICIANS (ทีมช่าง)
+// ==========================================
+export async function saveTechnicianToFirestore(tech: Technician): Promise<void> {
+  const docRef = doc(db, TECHNICIANS_COLLECTION, tech.id);
+  try {
+    const payload = {
+      ...tech,
+      syncedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await setDoc(docRef, payload, { merge: true });
+    console.log(`[Firebase] Technician ${tech.name} synced to Firestore.`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to save technician ${tech.name}:`, error);
+    handleFirestoreError(error, OperationType.WRITE, `${TECHNICIANS_COLLECTION}/${tech.id}`);
+  }
+}
+
+export async function deleteTechnicianFromFirestore(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, TECHNICIANS_COLLECTION, id);
+    await deleteDoc(docRef);
+    console.log(`[Firebase] Deleted technician ${id} from Firestore.`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to delete technician ${id}:`, error);
+    handleFirestoreError(error, OperationType.DELETE, `${TECHNICIANS_COLLECTION}/${id}`);
+  }
+}
+
+export async function fetchTechniciansFromFirestore(): Promise<Technician[]> {
+  try {
+    const colRef = collection(db, TECHNICIANS_COLLECTION);
+    const snapshot = await getDocs(colRef);
+    const techs: Technician[] = [];
+    snapshot.forEach(docSnap => {
+      techs.push(docSnap.data() as Technician);
+    });
+    return techs;
+  } catch (error) {
+    console.warn('[Firebase] fetchTechnicians error:', error);
+    return [];
+  }
+}
+
+export function subscribeToTechnicians(onUpdate: (techs: Technician[]) => void): () => void {
+  try {
+    const colRef = collection(db, TECHNICIANS_COLLECTION);
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        const techs: Technician[] = [];
+        snapshot.forEach(docSnap => {
+          techs.push(docSnap.data() as Technician);
+        });
+        onUpdate(techs);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, TECHNICIANS_COLLECTION);
+      }
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.warn('[Firebase] Technician subscription failed:', error);
+    return () => {};
+  }
+}
+
+export async function batchSyncTechniciansToFirestore(techs: Technician[]): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    for (const tech of techs) {
+      const docRef = doc(db, TECHNICIANS_COLLECTION, tech.id);
+      batch.set(docRef, { ...tech, syncedAt: new Date().toISOString() }, { merge: true });
+    }
+    await batch.commit();
+    console.log(`[Firebase] Batch uploaded ${techs.length} technicians to Firestore.`);
+  } catch (error) {
+    console.error('[Firebase] Batch technicians upload failed:', error);
+    handleFirestoreError(error, OperationType.WRITE, TECHNICIANS_COLLECTION);
+  }
+}
+
+// ==========================================
+// 5. SYSTEM USERS (จัดการผู้ใช้โดยแอดมิน)
+// ==========================================
 export async function saveUserToFirestore(user: SystemUser): Promise<void> {
   const docRef = doc(db, USERS_COLLECTION, user.id);
   try {
@@ -270,9 +419,17 @@ export async function saveUserToFirestore(user: SystemUser): Promise<void> {
   }
 }
 
-/**
- * สมัครรับข้อมูล Realtime updates ผู้ใช้งานระบบ (รวมทั้งการขออนุมัติใหม่)
- */
+export async function deleteUserFromFirestore(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, USERS_COLLECTION, id);
+    await deleteDoc(docRef);
+    console.log(`[Firebase] Deleted user ${id} from Firestore.`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to delete user ${id}:`, error);
+    handleFirestoreError(error, OperationType.DELETE, `${USERS_COLLECTION}/${id}`);
+  }
+}
+
 export function subscribeToUsers(onUpdate: (users: SystemUser[]) => void): () => void {
   try {
     const colRef = collection(db, USERS_COLLECTION);
@@ -283,9 +440,7 @@ export function subscribeToUsers(onUpdate: (users: SystemUser[]) => void): () =>
         snapshot.forEach(docSnap => {
           users.push(docSnap.data() as SystemUser);
         });
-        if (users.length > 0) {
-          onUpdate(users);
-        }
+        onUpdate(users);
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, USERS_COLLECTION);
@@ -298,9 +453,6 @@ export function subscribeToUsers(onUpdate: (users: SystemUser[]) => void): () =>
   }
 }
 
-/**
- * ซิงค์รายชื่อผู้ใช้ทั้งหมดขึ้น Firestore
- */
 export async function batchSyncUsersToFirestore(users: SystemUser[]): Promise<void> {
   try {
     const batch = writeBatch(db);
@@ -316,9 +468,9 @@ export async function batchSyncUsersToFirestore(users: SystemUser[]): Promise<vo
   }
 }
 
-/**
- * ล้างข้อมูลตัวอย่างออกจาก Firestore ให้เป็นฐานข้อมูลเปล่า
- */
+// ==========================================
+// 6. CLEAR DATABASE (ล้างข้อมูลตัวอย่างเป็นฐานเปล่า 100%)
+// ==========================================
 export async function clearFirestoreData(): Promise<void> {
   try {
     // 1. Delete all work orders
@@ -337,9 +489,41 @@ export async function clearFirestoreData(): Promise<void> {
       await batchAssets.commit();
     }
 
-    console.log('[Firebase] Cleared sample work orders and assets from Firestore.');
+    // 3. Delete all spare parts
+    const partsSnap = await getDocs(collection(db, SPARE_PARTS_COLLECTION));
+    if (!partsSnap.empty) {
+      const batchParts = writeBatch(db);
+      partsSnap.forEach((d) => batchParts.delete(d.ref));
+      await batchParts.commit();
+    }
+
+    // 4. Delete all technicians
+    const techsSnap = await getDocs(collection(db, TECHNICIANS_COLLECTION));
+    if (!techsSnap.empty) {
+      const batchTechs = writeBatch(db);
+      techsSnap.forEach((d) => batchTechs.delete(d.ref));
+      await batchTechs.commit();
+    }
+
+    // 5. Delete all sample users, keep or re-create DEFAULT_ADMIN_USER
+    const usersSnap = await getDocs(collection(db, USERS_COLLECTION));
+    if (!usersSnap.empty) {
+      const batchUsers = writeBatch(db);
+      usersSnap.forEach((d) => {
+        // Delete all except admin
+        const u = d.data() as SystemUser;
+        if (u.username?.toLowerCase() !== 'admin') {
+          batchUsers.delete(d.ref);
+        }
+      });
+      await batchUsers.commit();
+    }
+
+    // Ensure default admin user is present in Firestore with password: 'sskhos'
+    await saveUserToFirestore(DEFAULT_ADMIN_USER);
+
+    console.log('[Firebase] Successfully cleared sample database from Firestore (kept default admin: admin/sskhos).');
   } catch (error) {
     console.error('[Firebase] Clear firestore data error:', error);
   }
 }
-

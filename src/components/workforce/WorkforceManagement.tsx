@@ -26,7 +26,8 @@ import {
   Sliders,
   CheckSquare,
   Square,
-  Settings2
+  Settings2,
+  Database
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Technician, SystemUser, UserRole } from '../../types';
@@ -37,12 +38,17 @@ export const WorkforceManagement: React.FC = () => {
     systemUsers, 
     workOrders, 
     assets,
+    spareParts,
     currentUser,
     updateTechStatus, 
     updateUserStatus,
     approveUser,
     updateUserPermissions,
     rejectUser,
+    addUserByAdmin,
+    deleteUser,
+    addTechnician,
+    deleteTechnician,
     clearAllSampleData,
     loadSampleData,
     setSelectedOrderForDetail 
@@ -53,12 +59,17 @@ export const WorkforceManagement: React.FC = () => {
   const [searchUserQuery, setSearchUserQuery] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('ทั้งหมด');
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState<boolean>(false);
+  const [isAddTechModalOpen, setIsAddTechModalOpen] = useState<boolean>(false);
   const [dbNotice, setDbNotice] = useState<string | null>(null);
 
-  // In-app Database clear confirmation modal state (replaces window.confirm)
+  // In-app Database clear confirmation modal state (Zero window.confirm)
   const [isClearDbConfirmOpen, setIsClearDbConfirmOpen] = useState<boolean>(false);
   const [isLoadSampleConfirmOpen, setIsLoadSampleConfirmOpen] = useState<boolean>(false);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+
+  // In-app deletion targets
+  const [deleteTargetUser, setDeleteTargetUser] = useState<SystemUser | null>(null);
+  const [deleteTargetTech, setDeleteTargetTech] = useState<Technician | null>(null);
 
   // Function permissions management modal state
   const [permissionModalUser, setPermissionModalUser] = useState<SystemUser | null>(null);
@@ -69,10 +80,11 @@ export const WorkforceManagement: React.FC = () => {
     return systemUsers.filter(u => u.status === 'pending');
   }, [systemUsers]);
 
-  // New user form state
+  // New user form state (แอดมินเพิ่มผู้ใช้ระบบ)
   const [newUserData, setNewUserData] = useState<{
     username: string;
     fullName: string;
+    password?: string;
     role: UserRole;
     department: string;
     phone: string;
@@ -80,10 +92,32 @@ export const WorkforceManagement: React.FC = () => {
   }>({
     username: '',
     fullName: '',
+    password: 'sskhos',
     role: 'technician',
     department: '1. บริหารทั่วไป',
     phone: '',
     email: ''
+  });
+
+  const [selectedMenusForNewUser, setSelectedMenusForNewUser] = useState<('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]>([
+    'dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'
+  ]);
+
+  // New technician form state (แอดมินเพิ่มช่างเทคนิค)
+  const [newTechData, setNewTechData] = useState<{
+    name: string;
+    role: 'biomedical' | 'medical_tech' | 'facility' | 'it';
+    roleTitle: string;
+    phone: string;
+    email: string;
+    avatarColor: string;
+  }>({
+    name: '',
+    role: 'biomedical',
+    roleTitle: 'วิศวกรชีวการแพทย์/ช่างเทคนิค',
+    phone: '',
+    email: '',
+    avatarColor: 'bg-emerald-700'
   });
 
   const selectedTech = technicians.find(t => t.id === selectedTechId) || technicians[0];
@@ -122,38 +156,6 @@ export const WorkforceManagement: React.FC = () => {
     return { total, active, admins, techs, depts };
   }, [systemUsers]);
 
-  const handleCreateUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserData.fullName || !newUserData.username) return;
-
-    const newUser: SystemUser = {
-      id: `usr-${Date.now().toString().slice(-4)}`,
-      username: newUserData.username,
-      fullName: newUserData.fullName,
-      role: newUserData.role,
-      roleName: newUserData.role === 'super_admin' ? 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)' :
-                newUserData.role === 'supervisor' ? 'หัวหน้างานซ่อมบำรุง (Supervisor)' :
-                newUserData.role === 'technician' ? 'นายช่างเทคนิค/วิศวกรชีวการแพทย์' : 'เจ้าหน้าที่แผนกผู้แจ้งซ่อม',
-      department: newUserData.department,
-      phone: newUserData.phone || '034-595021',
-      email: newUserData.email || `${newUserData.username}@skh.moph.go.th`,
-      status: 'active',
-      lastLogin: 'เพิ่งสร้างบัญชี',
-      permissions: newUserData.role === 'super_admin' ? ['all_access'] : ['repair_manage', 'asset_view']
-    };
-
-    systemUsers.push(newUser);
-    setIsAddUserModalOpen(false);
-    setNewUserData({
-      username: '',
-      fullName: '',
-      role: 'technician',
-      department: '1. บริหารทั่วไป',
-      phone: '',
-      email: ''
-    });
-  };
-
   const AVAILABLE_SYSTEM_MENUS = [
     { id: 'dashboard' as const, label: '01. แดชบอร์ดภาพรวม', sub: 'KPIs, กราฟแนวโน้มงานซ่อม, สถิติภาพรวม' },
     { id: 'assets' as const, label: '02. ทะเบียนครุภัณฑ์', sub: 'ค้นหา, ทะเบียนคุม สธ., QR Code, ประวัติการซ่อม' },
@@ -163,6 +165,76 @@ export const WorkforceManagement: React.FC = () => {
     { id: 'reports' as const, label: '06. ระบบรายงาน', sub: '3 รายงานสรุปผลงานซ่อม, อะไหล่คงเหลือ, แผนจัดซื้อใหม่' },
     { id: 'workforce' as const, label: '07. จัดการผู้ใช้ระบบ', sub: 'จัดการบัญชี, กำหนดสิทธิ์ฟังก์ชั่น (สงวนเฉพาะ Super Admin)' },
   ];
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserData.fullName || !newUserData.username) return;
+
+    setIsActionLoading(true);
+    try {
+      await addUserByAdmin({
+        username: newUserData.username,
+        fullName: newUserData.fullName,
+        password: newUserData.password || 'sskhos',
+        role: newUserData.role,
+        department: newUserData.department,
+        phone: newUserData.phone || '034-595021',
+        email: newUserData.email || `${newUserData.username}@skh.moph.go.th`,
+        allowedMenus: selectedMenusForNewUser
+      });
+
+      setDbNotice(`✓ บันทึกผู้ใช้ใหม่ @${newUserData.username} และซิงค์ขึ้น Firebase สำเร็จแล้ว`);
+      setTimeout(() => setDbNotice(null), 5000);
+      setIsAddUserModalOpen(false);
+      setNewUserData({
+        username: '',
+        fullName: '',
+        password: 'sskhos',
+        role: 'technician',
+        department: '1. บริหารทั่วไป',
+        phone: '',
+        email: ''
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleCreateTech = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTechData.name) return;
+
+    setIsActionLoading(true);
+    try {
+      await addTechnician({
+        name: newTechData.name,
+        role: newTechData.role,
+        roleTitle: newTechData.roleTitle,
+        phone: newTechData.phone || '034-595021',
+        email: newTechData.email || 'tech@skh.moph.go.th',
+        status: 'available',
+        avatarColor: newTechData.avatarColor || 'bg-emerald-700'
+      });
+
+      setDbNotice(`✓ บันทึกช่างเทคนิค ${newTechData.name} และซิงค์ขึ้น Firebase สำเร็จแล้ว`);
+      setTimeout(() => setDbNotice(null), 5000);
+      setIsAddTechModalOpen(false);
+      setNewTechData({
+        name: '',
+        role: 'biomedical',
+        roleTitle: 'วิศวกรชีวการแพทย์/ช่างเทคนิค',
+        phone: '',
+        email: '',
+        avatarColor: 'bg-emerald-700'
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   const handleOpenPermissionModal = (user: SystemUser) => {
     setPermissionModalUser(user);
@@ -230,11 +302,17 @@ export const WorkforceManagement: React.FC = () => {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold font-display text-slate-900 tracking-tight">
-                จัดการผู้ใช้ระบบและทีมช่าง (User & Workforce Management)
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold font-display text-slate-900 tracking-tight">
+                  จัดการผู้ใช้ระบบและทีมช่าง (User & Workforce Management)
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Database className="w-3 h-3 text-emerald-600" />
+                  <span>Firebase Live Sync</span>
+                </span>
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                บริหารจัดการบัญชีผู้ใช้งานระบบ สิทธิ์การเข้าถึงข้อมูล (RBAC) และความพร้อมทีมช่างโรงพยาบาลสังขละบุรี
+                เพิ่มผู้ใช้โดยแอดมิน กำหนดสิทธิ์การเข้าถึงแต่ละฟังก์ชั่น (RBAC) และเชื่อมต่อฐานข้อมูล Firebase อัตโนมัติ
               </p>
             </div>
           </div>
@@ -362,8 +440,8 @@ export const WorkforceManagement: React.FC = () => {
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                สถานะปัจจุบัน: ครุภัณฑ์ <strong>{assets.length}</strong> รายการ | ใบแจ้งซ่อม <strong>{workOrders.length}</strong> รายการ
-                {assets.length === 0 && workOrders.length === 0 && (
+                สถานะปัจจุบัน: ครุภัณฑ์ <strong>{assets.length}</strong> | ใบแจ้งซ่อม <strong>{workOrders.length}</strong> | อะไหล่ <strong>{spareParts.length}</strong> | ช่าง <strong>{technicians.length}</strong> | ผู้ใช้ <strong>{systemUsers.length}</strong>
+                {assets.length === 0 && workOrders.length === 0 && spareParts.length === 0 && (
                   <span className="text-emerald-700 font-bold ml-1.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     ✓ ฐานข้อมูลว่างเปล่า 100% พร้อมบันทึกข้อมูลจริง
                   </span>
@@ -448,24 +526,24 @@ export const WorkforceManagement: React.FC = () => {
           </div>
 
           {/* User Table & Search Toolbar */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="ค้นหาชื่อ, username หรือแผนก..."
+                    placeholder="ค้นหาชื่อ, Username, แผนก..."
                     value={searchUserQuery}
                     onChange={(e) => setSearchUserQuery(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs w-60 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
                 <select
                   value={selectedRoleFilter}
                   onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="ทั้งหมด">บทบาททั้งหมด</option>
                   <option value="super_admin">ผู้ดูแลระบบสูงสุด (Super Admin)</option>
@@ -477,10 +555,10 @@ export const WorkforceManagement: React.FC = () => {
 
               <button
                 onClick={() => setIsAddUserModalOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition shadow-xs cursor-pointer self-start sm:self-auto"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition shadow-xs cursor-pointer self-start sm:self-auto"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>เพิ่มผู้ใช้งานระบบ</span>
+                <span>+ เพิ่มผู้ใช้งานโดยแอดมิน</span>
               </button>
             </div>
 
@@ -523,25 +601,8 @@ export const WorkforceManagement: React.FC = () => {
                         }`}>
                           {user.roleName}
                         </span>
-                        {/* Function Badges */}
-                        <div className="mt-1 flex flex-wrap gap-1 max-w-[200px]">
-                          {(user.allowedMenus && user.allowedMenus.length > 0 
-                            ? user.allowedMenus 
-                            : user.role === 'super_admin'
-                            ? ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce']
-                            : user.role === 'supervisor'
-                            ? ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']
-                            : user.role === 'technician'
-                            ? ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration']
-                            : ['dashboard', 'assets', 'work-orders']
-                          ).map(m => (
-                            <span key={m} className="bg-slate-100 text-slate-600 text-[9px] px-1.5 py-0.2 rounded font-medium">
-                              {m === 'dashboard' ? 'แดชบอร์ด' : m === 'assets' ? 'ครุภัณฑ์' : m === 'inventory' ? 'คลังอะไหล่' : m === 'work-orders' ? 'แจ้งซ่อม' : m === 'pm-calibration' ? 'บำรุงรักษา' : m === 'reports' ? 'รายงาน' : 'ผู้ใช้'}
-                            </span>
-                          ))}
-                        </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-700 font-medium">
+                      <td className="py-3 px-4 text-slate-700">
                         {user.department}
                       </td>
                       <td className="py-3 px-4 text-slate-600">
@@ -607,6 +668,15 @@ export const WorkforceManagement: React.FC = () => {
                               >
                                 {user.status === 'active' ? 'ระงับ' : 'เปิด'}
                               </button>
+                              {user.username.toLowerCase() !== 'admin' && (
+                                <button
+                                  onClick={() => setDeleteTargetUser(user)}
+                                  className="text-xs font-semibold p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                  title="ลบบัญชีผู้ใช้นี้"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -625,71 +695,127 @@ export const WorkforceManagement: React.FC = () => {
       {/* ========================================================================= */}
       {mainView === 'technicians' && (
         <div className="space-y-6">
-          {/* Technicians Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {technicians.map((tech) => {
-              const isSelected = tech.id === selectedTech?.id;
-              const currentActiveCount = workOrders.filter(
-                w => (w.assignedTechId === tech.id || w.assignedTechName === tech.name) &&
-                     w.status !== 'completed' && w.status !== 'cancelled'
-              ).length;
-
-              return (
-                <div
-                  key={tech.id}
-                  onClick={() => setSelectedTechId(tech.id)}
-                  className={`bg-white p-5 rounded-2xl border cursor-pointer transition shadow-2xs ${
-                    isSelected
-                      ? 'border-indigo-600 ring-2 ring-indigo-600/20 bg-indigo-50/20'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-xl ${tech.avatarColor} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs`}>
-                        {tech.name.split(' ')[1]?.slice(0, 2) || tech.name.slice(0, 2)}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-900 leading-tight">
-                          {tech.name}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                          {tech.roleTitle}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Status Selector */}
-                  <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <select
-                      value={tech.status}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => updateTechStatus(tech.id, e.target.value as any)}
-                      className={`text-[11px] font-semibold rounded-lg px-2 py-0.5 border cursor-pointer ${
-                        tech.status === 'available'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : tech.status === 'busy'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      <option value="available">● พร้อมรับงาน</option>
-                      <option value="busy">● ติดหน้างาน</option>
-                      <option value="leave">● ลางาน / อบรม</option>
-                    </select>
-
-                    <div className="text-right">
-                      <span className="text-[11px] text-slate-500 font-medium">งานค้างซ่อม: </span>
-                      <span className={`font-mono font-bold ${currentActiveCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                        {currentActiveCount} งาน
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          
+          {/* Header Action Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-indigo-600" />
+                <span>รายชื่อบุคลากรทีมช่างและภาระงาน ({technicians.length} นาย)</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                เพิ่มช่างเทคนิคโดยสิทธิ์แอดมิน ติดตามสถานะความพร้อม และการจ่ายงานซ่อมบำรุง
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAddTechModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer self-start sm:self-auto transition"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>+ เพิ่มช่างเทคนิคใหม่</span>
+            </button>
           </div>
+
+          {/* Technicians Grid or Empty State */}
+          {technicians.length === 0 ? (
+            <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
+                <Wrench className="w-7 h-7" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800 text-base font-display">
+                  ยังไม่มีรายชื่อทีมช่างในระบบ
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-md">
+                  ฐานข้อมูลตัวอย่างถูกล้างออกเป็นฐานเปล่าแล้ว แอดมินสามารถกดปุ่มด้านล่างเพื่อเพิ่มรายชื่อช่างเทคนิคจริงของโรงพยาบาลสังขละบุรี (ข้อมูลจะบันทึกลง Firebase อัตโนมัติ)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddTechModalOpen(true)}
+                className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>+ เพิ่มช่างเทคนิคคนแรก</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {technicians.map((tech) => {
+                const isSelected = tech.id === selectedTech?.id;
+                const currentActiveCount = workOrders.filter(
+                  w => (w.assignedTechId === tech.id || w.assignedTechName === tech.name) &&
+                       w.status !== 'completed' && w.status !== 'cancelled'
+                ).length;
+
+                return (
+                  <div
+                    key={tech.id}
+                    onClick={() => setSelectedTechId(tech.id)}
+                    className={`bg-white p-5 rounded-2xl border cursor-pointer transition shadow-2xs relative ${
+                      isSelected
+                        ? 'border-indigo-600 ring-2 ring-indigo-600/20 bg-indigo-50/20'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-11 h-11 rounded-xl ${tech.avatarColor} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs`}>
+                          {tech.name.split(' ')[1]?.slice(0, 2) || tech.name.slice(0, 2)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900 leading-tight">
+                            {tech.name}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            {tech.roleTitle}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTargetTech(tech);
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="ลบรายชื่อช่างนี้"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Status Selector */}
+                    <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <select
+                        value={tech.status}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateTechStatus(tech.id, e.target.value as any)}
+                        className={`text-[11px] font-semibold rounded-lg px-2 py-0.5 border cursor-pointer ${
+                          tech.status === 'available'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : tech.status === 'busy'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <option value="available">● พร้อมรับงาน</option>
+                        <option value="busy">● ติดหน้างาน</option>
+                        <option value="leave">● ลางาน / อบรม</option>
+                      </select>
+
+                      <div className="text-right">
+                        <span className="text-[11px] text-slate-500 font-medium">งานค้างซ่อม: </span>
+                        <span className={`font-mono font-bold ${currentActiveCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                          {currentActiveCount} งาน
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Detailed Selected Technician Panel */}
           {selectedTech && (
@@ -781,18 +907,22 @@ export const WorkforceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Add User Modal */}
+      {/* ========================================================================= */}
+      {/* MODALS                                                                    */}
+      {/* ========================================================================= */}
+
+      {/* 1. Add User by Admin Modal */}
       {isAddUserModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg p-6 border border-slate-200 my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
                 <UserPlus className="w-4 h-4 text-purple-600" />
-                <span>เพิ่มผู้ใช้งานระบบใหม่</span>
+                <span>เพิ่มผู้ใช้งานระบบใหม่ (โดยแอดมิน)</span>
               </h3>
               <button
                 onClick={() => setIsAddUserModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -811,16 +941,28 @@ export const WorkforceManagement: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">ชื่อผู้ใช้ (Username) *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="เช่น thanakorn.med"
-                  value={newUserData.username}
-                  onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">ชื่อผู้ใช้ (Username) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="เช่น thanakorn.med"
+                    value={newUserData.username}
+                    onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">รหัสผ่านสำหรับเข้าสู่ระบบ</label>
+                  <input
+                    type="text"
+                    placeholder="ค่าเริ่มต้น: sskhos"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
+                  />
+                </div>
               </div>
 
               <div>
@@ -830,33 +972,61 @@ export const WorkforceManagement: React.FC = () => {
                   onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold"
                 >
-                  <option value="technician">ช่างเทคนิค / วิศวกร (Technician)</option>
-                  <option value="supervisor">หัวหน้างานซ่อมบำรุง (Supervisor)</option>
+                  <option value="technician">ช่างเทคนิค / วิศวกรชีวการแพทย์ (Technician)</option>
+                  <option value="supervisor">หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร (Supervisor)</option>
                   <option value="department_staff">บุคลากรประจำแผนก (Department Staff)</option>
-                  <option value="super_admin">ผู้ดูแลระบบสูงสุด (Super Admin)</option>
+                  <option value="super_admin">ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">แผนกต้นสังกัด</label>
-                <input
-                  type="text"
-                  placeholder="เช่น 1. บริหารทั่วไป หรือ 5. อุบัติเหตุฉุกเฉิน"
-                  value={newUserData.department}
-                  onChange={(e) => setNewUserData({ ...newUserData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">แผนกต้นสังกัด</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น 1. บริหารทั่วไป หรือ 5. อุบัติเหตุฉุกเฉิน"
+                    value={newUserData.department}
+                    onChange={(e) => setNewUserData({ ...newUserData, department: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น 081-xxx-xxxx"
+                    value={newUserData.phone}
+                    onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
               </div>
 
+              {/* Function checkboxes for new user */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
-                <input
-                  type="text"
-                  placeholder="เช่น 081-xxx-xxxx"
-                  value={newUserData.phone}
-                  onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  กำหนดฟังก์ชั่นที่อนุญาตให้เข้าใช้งานได้:
+                </label>
+                <div className="grid grid-cols-2 gap-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl max-h-36 overflow-y-auto">
+                  {AVAILABLE_SYSTEM_MENUS.map(m => {
+                    const checked = selectedMenusForNewUser.includes(m.id);
+                    return (
+                      <label key={m.id} className="flex items-center gap-1.5 text-[11px] text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedMenusForNewUser(prev => 
+                              prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id]
+                            );
+                          }}
+                          className="w-3.5 h-3.5 accent-purple-600 rounded"
+                        />
+                        <span className="truncate">{m.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
@@ -869,9 +1039,10 @@ export const WorkforceManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isActionLoading}
                   className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs cursor-pointer"
                 >
-                  บันทึกผู้ใช้ใหม่
+                  {isActionLoading ? 'กำลังบันทึกลง Firebase...' : 'บันทึกผู้ใช้ใหม่'}
                 </button>
               </div>
             </form>
@@ -879,7 +1050,192 @@ export const WorkforceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Clear Database In-App Confirmation Modal (Zero window.confirm) */}
+      {/* 2. Add Technician Modal */}
+      {isAddTechModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 border border-slate-200 my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-indigo-600" />
+                <span>เพิ่มช่างเทคนิค/วิศวกรใหม่ (โดยแอดมิน)</span>
+              </h3>
+              <button
+                onClick={() => setIsAddTechModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTech} className="space-y-3.5 mt-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">ชื่อ - นามสกุล *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น นายสมคิด ช่างกล"
+                  value={newTechData.name}
+                  onChange={(e) => setNewTechData({ ...newTechData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">สายงานความเชี่ยวชาญ *</label>
+                <select
+                  value={newTechData.role}
+                  onChange={(e) => {
+                    const r = e.target.value as any;
+                    const titleMap = {
+                      biomedical: 'วิศวกรชีวการแพทย์ชำนาญการ',
+                      medical_tech: 'นายช่างเครื่องมือแพทย์ปฏิบัติการ',
+                      facility: 'ช่างระบบวิศวกรรมอาคารและปรับอากาศ',
+                      it: 'นักวิชาการคอมพิวเตอร์/ช่างไอที'
+                    };
+                    setNewTechData({ ...newTechData, role: r, roleTitle: (titleMap as any)[r] || 'ช่างเทคนิค' });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                >
+                  <option value="biomedical">เครื่องมือแพทย์และสาธารณสุข (Biomedical)</option>
+                  <option value="medical_tech">ช่างเครื่องมือแพทย์ (Medical Tech)</option>
+                  <option value="facility">วิศวกรรมอาคาร ปรับอากาศ และไฟฟ้า (Facility)</option>
+                  <option value="it">คอมพิวเตอร์และระบบสารสนเทศ (IT)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">ตำแหน่งงาน</label>
+                <input
+                  type="text"
+                  value={newTechData.roleTitle}
+                  onChange={(e) => setNewTechData({ ...newTechData, roleTitle: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น 089-xxx-xxxx"
+                    value={newTechData.phone}
+                    onChange={(e) => setNewTechData({ ...newTechData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">อีเมลติดต่อ</label>
+                  <input
+                    type="email"
+                    placeholder="เช่น tech@skh.moph.go.th"
+                    value={newTechData.email}
+                    onChange={(e) => setNewTechData({ ...newTechData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTechModalOpen(false)}
+                  className="px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={isActionLoading}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs cursor-pointer"
+                >
+                  {isActionLoading ? 'กำลังบันทึกลง Firebase...' : 'บันทึกช่างใหม่'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Delete User Modal */}
+      {deleteTargetUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">ยืนยันการลบบัญชีผู้ใช้</h3>
+                <p className="text-[11px] text-slate-500 font-mono">@{deleteTargetUser.username}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              คุณต้องการลบบัญชีผู้ใช้ <strong className="text-slate-800 font-semibold">{deleteTargetUser.fullName}</strong> ออกจากระบบและ Firebase Firestore หรือไม่?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetUser(null)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteUser(deleteTargetUser.id);
+                  setDeleteTargetUser(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
+              >
+                ยืนยันลบบัญชี
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Delete Technician Modal */}
+      {deleteTargetTech && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 border border-slate-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">ยืนยันการลบรายชื่อช่าง</h3>
+                <p className="text-[11px] text-slate-500 font-mono">{deleteTargetTech.roleTitle}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              คุณต้องการลบรายชื่อ <strong className="text-slate-800 font-semibold">{deleteTargetTech.name}</strong> ออกจากทะเบียนทีมช่างและ Firebase Firestore หรือไม่?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetTech(null)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteTechnician(deleteTargetTech.id);
+                  setDeleteTargetTech(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
+              >
+                ยืนยันลบช่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Clear Database In-App Confirmation Modal (Zero window.confirm) */}
       {isClearDbConfirmOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 border border-rose-200">
@@ -892,7 +1248,7 @@ export const WorkforceManagement: React.FC = () => {
                   ยืนยันล้างข้อมูลเป็นฐานเปล่า 100%
                 </h3>
                 <p className="text-xs text-rose-600 font-semibold">
-                  การกระทำนี้จะล้างข้อมูลตัวอย่างทั้งหมด
+                  ล้างข้อมูลตัวอย่างทั้งหมดออกเป็นฐานว่างเปล่า
                 </p>
               </div>
             </div>
@@ -900,12 +1256,15 @@ export const WorkforceManagement: React.FC = () => {
             <div className="text-xs text-slate-600 space-y-2 py-3 border-y border-slate-100">
               <p>ระบบจะทำการล้างข้อมูลตัวอย่างทั้งหมดดังต่อไปนี้:</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-700 font-medium">
-                <li>ลบรายการทะเบียนครุภัณฑ์ทั้งหมด ({assets.length} รายการ)</li>
+                <li>ลบรายการทะเบียนครุภัณฑ์ ({assets.length} รายการ)</li>
                 <li>ลบประวัติและใบแจ้งซ่อมทั้งหมด ({workOrders.length} รายการ)</li>
-                <li>ล้างข้อมูลใน Firebase Cloud Firestore และหน่วยความจำ LocalStorage</li>
+                <li>ลบรายการคลังอะไหล่และสต็อกทั้งหมด ({spareParts.length} รายการ)</li>
+                <li>ลบรายชื่อทีมช่างตัวอย่าง ({technicians.length} นาย)</li>
+                <li>ลบบัญชีผู้ใช้ตัวอย่าง (คงเหลือเฉพาะบัญชีผู้ดูแลระบบหลัก: admin / sskhos)</li>
+                <li>ล้างข้อมูลและซิงค์ Firebase Cloud Firestore แบบสมบูรณ์</li>
               </ul>
               <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-amber-900 font-medium">
-                💡 หลังจากล้างฐานข้อมูลแล้ว ระบบจะพร้อมสำหรับการบันทึกทะเบียนครุภัณฑ์และใบแจ้งซ่อมจริงของโรงพยาบาลสังขละบุรีทันที
+                💡 หลังจากล้างฐานข้อมูลแล้ว ระบบจะว่างเปล่า 100% พร้อมสำหรับการบันทึกข้อมูลจริงของโรงพยาบาลสังขละบุรี
               </div>
             </div>
 
@@ -942,7 +1301,7 @@ export const WorkforceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Load Sample Data In-App Confirmation Modal */}
+      {/* 6. Load Sample Data In-App Confirmation Modal */}
       {isLoadSampleConfirmOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
@@ -955,13 +1314,13 @@ export const WorkforceManagement: React.FC = () => {
                   โหลดข้อมูลตัวอย่างสำหรับการทดสอบ
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  เติมข้อมูลจำลองครุภัณฑ์การแพทย์และใบแจ้งซ่อม
+                  เติมข้อมูลจำลองครุภัณฑ์การแพทย์ ใบแจ้งซ่อม อะไหล่ และทีมช่าง
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 py-3 border-y border-slate-100">
-              ระบบจะนำเข้าตัวอย่างครุภัณฑ์การแพทย์ 8 รายการ และประวัติใบแจ้งซ่อม 7 รายการเพื่อใช้ในการทดสอบระบบและรายงาน
+              ระบบจะนำเข้าตัวอย่างครุภัณฑ์การแพทย์ ใบแจ้งซ่อม คลังอะไหล่ และรายชื่อช่างจำลองเพื่อใช้ในการสาธิตและทดสอบระบบ
             </p>
 
             <div className="pt-4 flex items-center justify-end gap-2.5">
@@ -997,7 +1356,7 @@ export const WorkforceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Function Permissions & RBAC Modal (สิทธิแอดมินกำหนดฟังก์ชั่นให้ user) */}
+      {/* 7. Function Permissions & RBAC Modal (สิทธิแอดมินกำหนดฟังก์ชั่นให้ user) */}
       {permissionModalUser && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 border border-slate-200">
@@ -1160,4 +1519,3 @@ export const WorkforceManagement: React.FC = () => {
     </div>
   );
 };
-

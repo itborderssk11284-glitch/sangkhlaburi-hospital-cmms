@@ -9,33 +9,27 @@ service cloud.firestore {
     
     // Work orders collection (บันทึกงานซ่อมบำรุง)
     match /work_orders/{orderId} {
-      allow read: if true;
-      allow create: if request.resource.data.orderNumber is string 
-                    && request.resource.data.orderNumber.size() > 0
-                    && request.resource.data.orderNumber.size() <= 100
-                    && request.resource.data.assetName is string
-                    && request.resource.data.assetName.size() <= 300;
-      allow update: if request.resource.data.orderNumber is string;
-      allow delete: if true;
+      allow read, write, delete: if true;
     }
 
     // Assets collection (ทะเบียนครุภัณฑ์)
     match /assets/{assetId} {
-      allow read: if true;
-      allow create, update: if request.resource.data.code is string
-                            && request.resource.data.code.size() > 0
-                            && request.resource.data.code.size() <= 100;
-      allow delete: if true;
+      allow read, write, delete: if true;
     }
 
-    // System users collection (จัดการผู้ใช้งานและอนุมัติสิทธิ์แอดมิน)
+    // Spare parts collection (คลังอะไหล่และสต็อก)
+    match /spare_parts/{partId} {
+      allow read, write, delete: if true;
+    }
+
+    // Technicians collection (ข้อมูลทีมช่างและภาระงาน)
+    match /technicians/{techId} {
+      allow read, write, delete: if true;
+    }
+
+    // System users collection (จัดการบัญชีผู้ใช้และกำหนดสิทธิ์โดยแอดมิน)
     match /users/{userId} {
-      allow read: if true;
-      allow create: if request.resource.data.username is string
-                    && request.resource.data.username.size() > 0
-                    && request.resource.data.username.size() <= 100;
-      allow update: if request.resource.data.username is string;
-      allow delete: if false;
+      allow read, write, delete: if true;
     }
 
     // Default deny

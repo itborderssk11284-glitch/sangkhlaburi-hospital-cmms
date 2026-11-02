@@ -81,7 +81,9 @@ export const ASSET_CATEGORIES_CONFIG: { id: AssetCategory; label: string; codePr
   },
 ];
 
-export const INITIAL_TECHNICIANS: Technician[] = [
+export const INITIAL_TECHNICIANS: Technician[] = [];
+
+export const SAMPLE_TECHNICIANS_FOR_DEMO: Technician[] = [
   {
     id: 'tech-1',
     name: 'นายกิตติศักดิ์ พัฒนไพศาล',
@@ -1419,7 +1421,9 @@ export const INITIAL_PM_RECORDS: PMRecord[] = [
   }
 ];
 
-export const INITIAL_SPARE_PARTS: SparePart[] = [
+export const INITIAL_SPARE_PARTS: SparePart[] = [];
+
+export const SAMPLE_SPARE_PARTS_FOR_DEMO: SparePart[] = [
   {
     id: 'sp-001',
     code: 'SP-BATT-XL',
@@ -1616,7 +1620,10 @@ export const DEFAULT_ADMIN_USER: SystemUser = {
 };
 
 export const INITIAL_SYSTEM_USERS: SystemUser[] = [
-  DEFAULT_ADMIN_USER,
+  DEFAULT_ADMIN_USER
+];
+
+export const SAMPLE_USERS_FOR_DEMO: SystemUser[] = [
   {
     id: 'usr-01',
     username: 'admin.it',

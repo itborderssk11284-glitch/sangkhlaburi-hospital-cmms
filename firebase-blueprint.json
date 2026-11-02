@@ -41,9 +41,42 @@
       },
       "required": ["code", "name", "category", "department", "status"]
     },
+    "SparePart": {
+      "title": "SparePart",
+      "description": "คลังอะไหล่และชิ้นส่วนซ่อมบำรุง โรงพยาบาลสังขละบุรี",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "รหัส ID อะไหล่" },
+        "code": { "type": "string", "description": "รหัสอะไหล่ เช่น SP-MED-101" },
+        "name": { "type": "string", "description": "ชื่ออะไหล่" },
+        "category": { "type": "string", "description": "หมวดหมู่อะไหล่" },
+        "quantity": { "type": "number", "description": "จำนวนคงเหลือ" },
+        "minimumQuantity": { "type": "number", "description": "จุดสั่งซื้อขั้นต่ำ" },
+        "unit": { "type": "string", "description": "หน่วยนับ เช่น ชิ้น ชุด อัน" },
+        "unitPrice": { "type": "number", "description": "ราคาต่อหน่วย" },
+        "location": { "type": "string", "description": "ตำแหน่งจัดเก็บในคลัง" },
+        "supplier": { "type": "string", "description": "บริษัทผู้จำหน่าย" }
+      },
+      "required": ["code", "name", "quantity", "unit", "unitPrice"]
+    },
+    "Technician": {
+      "title": "Technician",
+      "description": "บุคลากรทีมช่างและภาระงานซ่อมบำรุง",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "รหัสช่าง" },
+        "name": { "type": "string", "description": "ชื่อ-นามสกุลช่าง" },
+        "role": { "type": "string", "description": "สายงานความเชี่ยวชาญ" },
+        "roleTitle": { "type": "string", "description": "ตำแหน่งงาน" },
+        "phone": { "type": "string", "description": "เบอร์โทรติดต่อ" },
+        "email": { "type": "string", "description": "อีเมลติดต่อ" },
+        "status": { "type": "string", "description": "สถานะความพร้อม" }
+      },
+      "required": ["name", "role", "roleTitle"]
+    },
     "SystemUser": {
       "title": "SystemUser",
-      "description": "ผู้ใช้งานระบบและการขออนุมัติสิทธิ์ โรงพยาบาลสังขละบุรี",
+      "description": "ผู้ใช้งานระบบและการกำหนดสิทธิ์โดยแอดมิน โรงพยาบาลสังขละบุรี",
       "type": "object",
       "properties": {
         "id": { "type": "string", "description": "รหัสผู้ใช้" },
@@ -65,6 +98,14 @@
     "/assets/{assetId}": {
       "schema": "Asset",
       "description": "จัดเก็บข้อมูลทะเบียนครุภัณฑ์"
+    },
+    "/spare_parts/{partId}": {
+      "schema": "SparePart",
+      "description": "จัดเก็บข้อมูลคลังอะไหล่และสต็อกคงเหลือ"
+    },
+    "/technicians/{techId}": {
+      "schema": "Technician",
+      "description": "จัดเก็บข้อมูลบุคลากรทีมช่าง"
     },
     "/users/{userId}": {
       "schema": "SystemUser",

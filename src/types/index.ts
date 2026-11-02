@@ -84,6 +84,7 @@ export interface Asset {
   pmFrequencyMonths: number;
   lastCalibrationDate?: string;
   nextCalibrationDate?: string;
+  lastRepairDate?: string;
   imageUrl?: string;
   expectedLifeYears?: number;
 
