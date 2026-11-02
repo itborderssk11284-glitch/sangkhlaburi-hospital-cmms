@@ -22,6 +22,17 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
+// Helper to remove undefined properties before saving to Firestore
+export function cleanUndefined<T extends Record<string, any>>(obj: T): T {
+  const result: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}
+
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -169,15 +180,27 @@ export async function batchSyncWorkOrdersToFirestore(orders: WorkOrder[]): Promi
 export async function saveAssetToFirestore(asset: Asset): Promise<void> {
   const docRef = doc(db, ASSETS_COLLECTION, asset.id);
   try {
-    const payload = {
+    const payload = cleanUndefined({
       ...asset,
       syncedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
+    });
     await setDoc(docRef, payload, { merge: true });
+    console.log(`[Firebase] Asset ${asset.code} successfully saved to Firestore (${asset.id}).`);
   } catch (error) {
     console.error(`[Firebase] Failed to save asset ${asset.code}:`, error);
     handleFirestoreError(error, OperationType.WRITE, `${ASSETS_COLLECTION}/${asset.id}`);
+  }
+}
+
+export async function deleteAssetFromFirestore(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, ASSETS_COLLECTION, id);
+    await deleteDoc(docRef);
+    console.log(`[Firebase] Asset deleted from Firestore (${id}).`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to delete asset ${id}:`, error);
+    handleFirestoreError(error, OperationType.DELETE, `${ASSETS_COLLECTION}/${id}`);
   }
 }
 
@@ -227,7 +250,7 @@ export async function batchSyncAssetsToFirestore(assets: Asset[]): Promise<void>
       const batch = writeBatch(db);
       for (const asset of chunk) {
         const docRef = doc(db, ASSETS_COLLECTION, asset.id);
-        batch.set(docRef, { ...asset, syncedAt: new Date().toISOString() }, { merge: true });
+        batch.set(docRef, cleanUndefined({ ...asset, syncedAt: new Date().toISOString() }), { merge: true });
       }
       await batch.commit();
     }

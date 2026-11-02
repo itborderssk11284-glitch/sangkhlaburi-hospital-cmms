@@ -44,6 +44,7 @@ import {
   clearFirestoreData,
   batchSyncWorkOrdersToFirestore,
   batchSyncAssetsToFirestore,
+  deleteAssetFromFirestore,
   testConnection
 } from '../lib/firebase';
 
@@ -118,8 +119,8 @@ interface AppContextType {
   // Handlers
   addAsset: (asset: Omit<Asset, 'id'>) => void;
   batchAddAssets: (assets: Omit<Asset, 'id'>[]) => void;
-  updateAsset: (id: string, updates: Partial<Asset>) => void;
-  deleteAsset: (id: string) => void;
+  updateAsset: (id: string, updates: Partial<Asset>) => Promise<void>;
+  deleteAsset: (id: string) => Promise<void>;
   
   addWorkOrder: (order: Omit<WorkOrder, 'id' | 'orderNumber' | 'reportDate' | 'status' | 'usedParts' | 'totalCost'>) => void;
   updateWorkOrderStatus: (id: string, status: WorkOrderStatus, notes?: string) => void;
@@ -673,7 +674,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     batchSyncAssetsToFirestore(createdAssets).catch(console.warn);
   };
 
-  const updateAsset = (id: string, updates: Partial<Asset>) => {
+  const updateAsset = async (id: string, updates: Partial<Asset>): Promise<void> => {
     let updatedAsset: Asset | null = null;
     setAssets(prev => prev.map(a => {
       if (a.id === id) {
@@ -687,15 +688,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedAssetForDetail(prev => prev ? { ...prev, ...updates } : null);
     }
     if (updatedAsset) {
-      saveAssetToFirestore(updatedAsset).catch(console.warn);
+      await saveAssetToFirestore(updatedAsset);
     }
   };
 
-  const deleteAsset = (id: string) => {
+  const deleteAsset = async (id: string): Promise<void> => {
     setAssets(prev => prev.filter(a => a.id !== id));
     if (selectedAssetForDetail?.id === id) {
       setSelectedAssetForDetail(null);
     }
+    await deleteAssetFromFirestore(id).catch(console.warn);
   };
 
   // Work Order Actions

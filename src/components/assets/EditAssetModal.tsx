@@ -12,7 +12,9 @@ import {
   Clock, 
   Wind, 
   DollarSign,
-  Info
+  Info,
+  Loader2,
+  Database
 } from 'lucide-react';
 import { 
   Asset, 
@@ -82,15 +84,41 @@ export const EditAssetModal: React.FC<{
 
   // Validation & feedback state
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedDetails, setSavedDetails] = useState<{
+    totalPrice: number;
+    annualDepreciation: number;
+    accumulatedDepreciation: number;
+    netBookValue: number;
+    syncedAt: string;
+  } | null>(null);
 
   const calculateTotalPrice = () => (Number(price) || 0) * (Number(quantity) || 1);
   const calculateAnnualDeprec = () => {
     const total = calculateTotalPrice();
     return Math.round((total * (Number(depreciationRatePercent) || 12.5)) / 100);
   };
+  const calculateAccumulatedDeprec = () => {
+    const total = calculateTotalPrice();
+    const annual = calculateAnnualDeprec();
+    if (!acquisitionDate) return asset.accumulatedDepreciation || 0;
+    try {
+      const acqYear = new Date(acquisitionDate).getFullYear();
+      const currentYear = new Date().getFullYear();
+      const yearsDiff = Math.max(0, currentYear - acqYear);
+      return Math.min(Math.max(0, total - 1), yearsDiff * annual);
+    } catch {
+      return asset.accumulatedDepreciation || 0;
+    }
+  };
+  const calculateNetBookValue = () => {
+    const total = calculateTotalPrice();
+    const accum = calculateAccumulatedDeprec();
+    return Math.max(1, total - accum);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -103,8 +131,12 @@ export const EditAssetModal: React.FC<{
       return;
     }
 
+    setIsSaving(true);
+
     const totalPrice = calculateTotalPrice();
     const annualDepreciation = calculateAnnualDeprec();
+    const accumulatedDepreciation = calculateAccumulatedDeprec();
+    const netBookValue = calculateNetBookValue();
 
     // Auto-compute next PM date if not set or frequency changed
     let computedNextPM = nextPMDate;
@@ -137,7 +169,8 @@ export const EditAssetModal: React.FC<{
       usefulLifeYears: Number(usefulLifeYears) || 8,
       depreciationRatePercent: Number(depreciationRatePercent) || 12.5,
       annualDepreciation,
-      netBookValue: totalPrice,
+      accumulatedDepreciation,
+      netBookValue,
       acquisitionDate,
       warrantyExpiry,
       vendor: vendor.trim() || 'บริษัทคู่ค้ามาตรฐาน สธ.',
@@ -156,12 +189,25 @@ export const EditAssetModal: React.FC<{
       } : {})
     };
 
-    updateAsset(asset.id, updates);
-    setIsSaved(true);
+    try {
+      await updateAsset(asset.id, updates);
+      setSavedDetails({
+        totalPrice,
+        annualDepreciation,
+        accumulatedDepreciation,
+        netBookValue,
+        syncedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      });
+      setIsSaving(false);
+      setIsSaved(true);
 
-    setTimeout(() => {
-      onClose();
-    }, 1200);
+      setTimeout(() => {
+        onClose();
+      }, 2400);
+    } catch (err: any) {
+      setIsSaving(false);
+      setFormError(`เกิดข้อผิดพลาดในการบันทึกลง Firebase: ${err?.message || 'โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'}`);
+    }
   };
 
   return (
@@ -197,18 +243,67 @@ export const EditAssetModal: React.FC<{
           </button>
         </div>
 
-        {/* Feedback / Saved banner */}
+        {/* Feedback / Saved banner with live recalculated metrics */}
         {isSaved ? (
-          <div className="p-10 text-center flex flex-col items-center justify-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center animate-bounce shadow-inner">
-              <CheckCircle2 className="w-8 h-8" />
+          <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center animate-bounce shadow-inner">
+              <CheckCircle2 className="w-9 h-9" />
             </div>
-            <h4 className="text-lg font-bold text-slate-900">
-              บันทึกการแก้ไขข้อมูลครุภัณฑ์เรียบร้อยแล้ว!
-            </h4>
-            <p className="text-xs text-slate-500">
-              ข้อมูลได้รับการอัปเดตในระบบและซิงค์เชื่อมต่อกับ Cloud Firestore เรียบร้อยแล้ว
-            </p>
+            
+            <div className="space-y-1">
+              <h4 className="text-xl font-bold text-slate-900">
+                บันทึกการแก้ไขและอัปเดตลง Firebase สำเร็จ!
+              </h4>
+              <p className="text-xs text-slate-600 max-w-lg mx-auto">
+                ข้อมูลครุภัณฑ์รหัส <strong className="text-emerald-800">{code}</strong> ได้รับการคำนวณมูลค่าใหม่และบันทึกลงในคอลเลกชัน <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono">assets</code> บน Cloud Firestore เรียบร้อยแล้ว
+              </p>
+            </div>
+
+            {/* Live Recalculated Results Summary Cards */}
+            {savedDetails && (
+              <div className="w-full max-w-xl grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-left pt-2">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                  <span className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wide">
+                    มูลค่ารวมทั้งสิ้น
+                  </span>
+                  <p className="text-base font-black text-emerald-950 mt-0.5 font-mono">
+                    {savedDetails.totalPrice.toLocaleString()} ฿
+                  </p>
+                </div>
+
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3">
+                  <span className="text-[10px] font-semibold text-teal-800 uppercase tracking-wide">
+                    ค่าเสื่อมราคา/ปี
+                  </span>
+                  <p className="text-base font-black text-teal-950 mt-0.5 font-mono">
+                    {savedDetails.annualDepreciation.toLocaleString()} ฿
+                  </p>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <span className="text-[10px] font-semibold text-amber-800 uppercase tracking-wide">
+                    ค่าเสื่อมสะสม
+                  </span>
+                  <p className="text-base font-black text-amber-950 mt-0.5 font-mono">
+                    {savedDetails.accumulatedDepreciation.toLocaleString()} ฿
+                  </p>
+                </div>
+
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-3">
+                  <span className="text-[10px] font-semibold text-sky-800 uppercase tracking-wide">
+                    มูลค่าสุทธิทางบัญชี
+                  </span>
+                  <p className="text-base font-black text-sky-950 mt-0.5 font-mono">
+                    {savedDetails.netBookValue.toLocaleString()} ฿
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-[11px] text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+              <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <span>ซิงค์แบบ Real-time: ทุกเครื่องที่เปิดใช้งานจะได้รับข้อมูลอัปเดตทันที ({savedDetails?.syncedAt})</span>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
@@ -532,7 +627,7 @@ export const EditAssetModal: React.FC<{
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">อายุใช้งานตามเกณฑ์ (ปี)</label>
                   <input
@@ -544,7 +639,7 @@ export const EditAssetModal: React.FC<{
                       setUsefulLifeYears(yrs);
                       setDepreciationRatePercent(Number((100 / yrs).toFixed(2)));
                     }}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-center"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-center"
                   />
                 </div>
 
@@ -555,14 +650,21 @@ export const EditAssetModal: React.FC<{
                     step="0.01"
                     value={depreciationRatePercent}
                     onChange={(e) => setDepreciationRatePercent(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-center font-bold text-teal-800"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 font-mono text-center font-bold text-teal-800"
                   />
                 </div>
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">ค่าเสื่อมราคาประจำปี (คำนวณ)</label>
-                  <div className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 font-mono font-semibold text-right text-slate-800">
+                  <div className="w-full bg-teal-50 border border-teal-200 rounded-lg p-2 font-mono font-semibold text-right text-teal-950">
                     {calculateAnnualDeprec().toLocaleString()} ฿/ปี
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">มูลค่าสุทธิทางบัญชี (คำนวณ)</label>
+                  <div className="w-full bg-sky-50 border border-sky-200 rounded-lg p-2 font-mono font-bold text-right text-sky-950">
+                    {calculateNetBookValue().toLocaleString()} ฿
                   </div>
                 </div>
               </div>
@@ -702,25 +804,37 @@ export const EditAssetModal: React.FC<{
             </div>
 
             {/* Footer Buttons */}
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">
-                ระบบจะบันทึกการแก้ไขลงฐานข้อมูลกลางและอัปเดตทะเบียนคุมทันที
-              </span>
+            <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>คำนวณมูลค่าใหม่อัตโนมัติ และซิงค์ขึ้น Firebase Cloud Firestore ทันที</span>
+              </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl font-medium transition cursor-pointer"
+                  disabled={isSaving}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl font-medium transition cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold transition shadow-xs cursor-pointer"
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-600 text-white rounded-xl font-bold transition shadow-xs cursor-pointer"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>บันทึกการแก้ไข</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>กำลังบันทึกและซิงค์ Firebase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>บันทึกการแก้ไข</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
