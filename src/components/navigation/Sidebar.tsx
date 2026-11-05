@@ -18,6 +18,7 @@ import {
   FileText,
   Boxes,
   KeyRound,
+  Hammer,
   X
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -44,9 +45,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     resetAllData 
   } = useApp();
 
-  // Active emergencies & urgent count
+  // Active emergencies & urgent count for asset work orders
   const activeUrgentOrders = workOrders.filter(
-    o => (o.priority === 'emergency' || o.priority === 'urgent') && 
+    o => o.orderType !== 'general' &&
+         (o.priority === 'emergency' || o.priority === 'urgent') && 
+         o.status !== 'completed' && o.status !== 'cancelled'
+  ).length;
+
+  // Active urgent general repairs
+  const activeUrgentOtherOrders = workOrders.filter(
+    o => o.orderType === 'general' &&
+         (o.priority === 'emergency' || o.priority === 'urgent') && 
          o.status !== 'completed' && o.status !== 'cancelled'
   ).length;
 
@@ -62,8 +71,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Low stock parts
   const lowStockParts = spareParts.filter(p => p.quantity <= p.minimumQuantity).length;
 
-  // Menu Items in EXACT ORDER requested:
-  // 1. แดชบอร์ดภาพรวม, 2. ทะเบียนครุภัณฑ์, 3. คลังอะไหล่, 4. ใบแจ้งซ่อม, 5. บำรุงรักษา, 6. รายงาน, 7. จัดการผู้ใช้ระบบ
+  // Menu Items in EXACT ORDER:
+  // 01. แดชบอร์ดภาพรวม, 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. ใบแจ้งซ่อมอื่นๆ, 06. บำรุงรักษา, 07. รายงาน, 08. จัดการผู้ใช้ระบบ
   const navItems = [
     {
       id: 'dashboard' as const,
@@ -101,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'work-orders' as const,
       num: '04',
       label: 'ใบแจ้งซ่อม',
-      subLabel: 'Work Orders & Dispatch',
+      subLabel: 'ซ่อมครุภัณฑ์ & มอบหมายงาน',
       icon: Wrench,
       gradient: 'from-rose-400 to-red-500',
       activeRing: 'ring-rose-500/40 text-rose-400',
@@ -110,8 +119,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badgeColor: 'bg-rose-500 text-white font-black animate-pulse',
     },
     {
-      id: 'pm-calibration' as const,
+      id: 'other-repairs' as const,
       num: '05',
+      label: 'ใบแจ้งซ่อมอื่นๆ',
+      subLabel: 'อาคาร, สถานที่ & ทั่วไป',
+      icon: Hammer,
+      gradient: 'from-amber-400 to-amber-600',
+      activeRing: 'ring-amber-500/40 text-amber-400',
+      glowShadow: 'shadow-amber-500/25',
+      badge: activeUrgentOtherOrders > 0 ? activeUrgentOtherOrders : undefined,
+      badgeColor: 'bg-amber-500 text-slate-950 font-black',
+    },
+    {
+      id: 'pm-calibration' as const,
+      num: '06',
       label: 'บำรุงรักษา',
       subLabel: 'PM, Calib & ล้างแอร์',
       icon: Wind,
@@ -123,7 +144,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'reports' as const,
-      num: '06',
+      num: '07',
       label: 'รายงาน',
       subLabel: '3 รายงาน & สรุปผลช่วงเวลา',
       icon: FileSpreadsheet,
@@ -133,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'workforce' as const,
-      num: '07',
+      num: '08',
       label: 'จัดการผู้ใช้ระบบ',
       subLabel: 'บัญชีผู้ใช้ & สิทธิ์ทีมช่าง',
       icon: Users2,
@@ -146,8 +167,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Filter accessible menus strictly by Admin-assigned permissions
   const visibleNavItems = navItems.filter((item) => {
     // If not logged in, show basic public/guest menus
-    if (!currentUser) return ['dashboard', 'assets', 'work-orders'].includes(item.id);
-    // Super Admin has full unrestricted access to all 7 menus
+    if (!currentUser) return ['dashboard', 'assets', 'work-orders', 'other-repairs'].includes(item.id);
+    // Super Admin has full unrestricted access to all 8 menus
     if (currentUser.role === 'super_admin') return true;
     // workforce tab is strictly restricted to super_admin
     if (item.id === 'workforce') return false;
@@ -156,19 +177,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return currentUser.allowedMenus.includes(item.id);
     }
     // Fallback role defaults:
-    // 2. ผู้บริหาร: 01. แดชบอร์ด, 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. บำรุงรักษาเชิงป้องกัน, 06. ระบบรายงาน
+    // 2. ผู้บริหาร: 01. แดชบอร์ด, 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. ใบแจ้งซ่อมอื่นๆ, 06. บำรุงรักษาเชิงป้องกัน, 07. ระบบรายงาน
     if (currentUser.role === 'supervisor') {
-      return ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'].includes(item.id);
+      return ['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'].includes(item.id);
     }
-    // 3. ช่างและเจ้าหน้าที่พัสดุ: 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. บำรุงรักษาเชิงป้องกัน, 06. ระบบรายงาน
+    // 3. ช่างและเจ้าหน้าที่พัสดุ: 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. ใบแจ้งซ่อมอื่นๆ, 06. บำรุงรักษาเชิงป้องกัน, 07. ระบบรายงาน
     if (currentUser.role === 'technician') {
-      return ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'].includes(item.id);
+      return ['assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'].includes(item.id);
     }
-    // 4. ผู้ใช้งานทั่วไป: 04. ใบแจ้งซ่อม (เข้าพิมพ์ได้ แต่ไม่สามารถเข้าไปแก้ไขได้)
+    // 4. ผู้ใช้งานทั่วไป: 04. ใบแจ้งซ่อม, 05. ใบแจ้งซ่อมอื่นๆ (เข้าพิมพ์และเปิดใบแจ้งได้ แต่ไม่สามารถเข้าไปแก้ไขได้)
     if (currentUser.role === 'department_staff') {
-      return ['work-orders'].includes(item.id);
+      return ['work-orders', 'other-repairs'].includes(item.id);
     }
-    return ['work-orders'].includes(item.id);
+    return ['work-orders', 'other-repairs'].includes(item.id);
   });
 
   // Ensure activeTab is always one of the visibleNavItems for the logged in role

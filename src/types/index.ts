@@ -135,6 +135,8 @@ export interface WorkOrder {
   id: string;
   orderNumber: string;    // เลขที่ใบแจ้งซ่อม เช่น WO-2026-0089
   documentNo?: string;    // ที่เอกสาร เช่น กจ ๐๐๓.๓๐๘.๑/๐๐๐๑...
+  orderType?: 'asset' | 'general'; // 'asset' = ซ่อมครุภัณฑ์, 'general' = ซ่อมอื่นๆ
+  customItemName?: string;// รายการที่ซ่อม (พิมพ์ลงไปได้เอง สำหรับซ่อมอื่นๆ)
   assetId: string;
   assetCode: string;
   assetName: string;
@@ -274,6 +276,7 @@ export interface Technician {
 
 export type UserRole = 'super_admin' | 'supervisor' | 'technician' | 'department_staff';
 export type UserStatus = 'active' | 'pending' | 'suspended' | 'rejected';
+export type NavTabId = 'dashboard' | 'assets' | 'inventory' | 'work-orders' | 'other-repairs' | 'pm-calibration' | 'reports' | 'workforce';
 
 export interface SystemUser {
   id: string;
@@ -291,5 +294,6 @@ export interface SystemUser {
   approvedBy?: string;
   lastLogin?: string;
   permissions: string[];
-  allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
+  allowedMenus?: NavTabId[];
 }
+

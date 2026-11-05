@@ -151,6 +151,7 @@ export const EditWorkOrderModal: React.FC<{
       documentNo: documentNo.trim(),
       assetCode: assetCode.trim(),
       assetName: assetName.trim(),
+      customItemName: order.orderType === 'general' ? assetName.trim() : order.customItemName,
       model: model.trim(),
       brand: brand.trim(),
       department,
@@ -319,7 +320,7 @@ export const EditWorkOrderModal: React.FC<{
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
                   <label className="block text-slate-700 font-semibold mb-1">
-                    ชื่อเครื่อง / รายการครุภัณฑ์ *
+                    {order.orderType === 'general' ? 'รายการที่ซ่อม (พิมพ์ลงไปได้เอง) *' : 'ชื่อเครื่อง / รายการครุภัณฑ์ *'}
                   </label>
                   <input
                     type="text"

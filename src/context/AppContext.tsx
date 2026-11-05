@@ -10,7 +10,8 @@ import {
   UsedPart,
   SystemUser,
   UserRole,
-  UserStatus
+  UserStatus,
+  NavTabId
 } from '../types';
 import { 
   INITIAL_ASSETS, 
@@ -55,8 +56,8 @@ interface AppContextType {
   spareParts: SparePart[];
   technicians: Technician[];
   systemUsers: SystemUser[];
-  activeTab: 'dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce';
-  setActiveTab: (tab: 'dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce') => void;
+  activeTab: NavTabId;
+  setActiveTab: (tab: NavTabId) => void;
   selectedAssetForDetail: Asset | null;
   setSelectedAssetForDetail: (asset: Asset | null) => void;
   selectedOrderForDetail: WorkOrder | null;
@@ -97,17 +98,17 @@ interface AppContextType {
     department: string;
     phone: string;
     email?: string;
-    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
+    allowedMenus?: NavTabId[];
   }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   approveUser: (
     userId: string, 
-    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    allowedMenus?: NavTabId[], 
     role?: UserRole
   ) => Promise<void>;
   updateUserPermissions: (
     userId: string, 
-    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    allowedMenus: NavTabId[], 
     role?: UserRole
   ) => Promise<void>;
   rejectUser: (userId: string) => Promise<void>;
@@ -144,7 +145,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce'>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavTabId>('dashboard');
   
   // Authentication State
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
@@ -455,7 +456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     department: string;
     phone: string;
     email?: string;
-    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
+    allowedMenus?: NavTabId[];
   }) => {
     const roleNameMap: Record<UserRole, string> = {
       super_admin: 'ผู้ดูแลระบบ (Admin)',
@@ -464,11 +465,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       department_staff: 'ผู้ใช้งานทั่วไป (General User)'
     };
 
-    const defaultMenusMap: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
-      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
-      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      technician: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      department_staff: ['work-orders']
+    const defaultMenusMap: Record<UserRole, NavTabId[]> = {
+      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports', 'workforce'],
+      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'],
+      technician: ['assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'],
+      department_staff: ['work-orders', 'other-repairs']
     };
 
     const newUser: SystemUser = {
@@ -536,11 +537,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const targetRole = role || target.role;
-    const defaultMenus: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
-      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
-      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      technician: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      department_staff: ['work-orders']
+    const defaultMenus: Record<UserRole, NavTabId[]> = {
+      super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports', 'workforce'],
+      supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'],
+      technician: ['assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'],
+      department_staff: ['work-orders', 'other-repairs']
     };
 
     const updatedUser: SystemUser = {
@@ -579,7 +580,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUserPermissions = async (
     userId: string, 
-    allowedMenus: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    allowedMenus: NavTabId[], 
     role?: UserRole
   ) => {
     const target = systemUsers.find(u => u.id === userId);
@@ -730,7 +731,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setWorkOrders(prev => [newOrder, ...prev]);
-    updateAsset(data.assetId, { status: 'in_repair' });
+    if (data.assetId && data.assetId !== 'general') {
+      updateAsset(data.assetId, { status: 'in_repair' });
+    }
     syncWorkOrderToCloud(newOrder);
   };
 

@@ -30,7 +30,7 @@ import {
   Database
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Technician, SystemUser, UserRole } from '../../types';
+import { Technician, SystemUser, UserRole, NavTabId } from '../../types';
 
 export const WorkforceManagement: React.FC = () => {
   const { 
@@ -74,7 +74,7 @@ export const WorkforceManagement: React.FC = () => {
   // Function permissions management modal state
   const [permissionModalUser, setPermissionModalUser] = useState<SystemUser | null>(null);
   const [selectedRoleForPerm, setSelectedRoleForPerm] = useState<UserRole>('department_staff');
-  const [selectedMenusForPerm, setSelectedMenusForPerm] = useState<('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]>([]);
+  const [selectedMenusForPerm, setSelectedMenusForPerm] = useState<NavTabId[]>([]);
 
   const pendingUsers = useMemo(() => {
     return systemUsers.filter(u => u.status === 'pending');
@@ -94,13 +94,13 @@ export const WorkforceManagement: React.FC = () => {
     fullName: '',
     password: 'sskhos',
     role: 'technician',
-    department: '1. บริหารทั่วไป',
+    department: 'งานบริหารทั่วไป',
     phone: '',
     email: ''
   });
 
-  const [selectedMenusForNewUser, setSelectedMenusForNewUser] = useState<('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]>([
-    'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'
+  const [selectedMenusForNewUser, setSelectedMenusForNewUser] = useState<NavTabId[]>([
+    'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports'
   ]);
 
   // New technician form state (แอดมินเพิ่มช่างเทคนิค)
@@ -156,14 +156,15 @@ export const WorkforceManagement: React.FC = () => {
     return { total, active, admins, techs, depts };
   }, [systemUsers]);
 
-  const AVAILABLE_SYSTEM_MENUS = [
-    { id: 'dashboard' as const, label: '01. แดชบอร์ดภาพรวม', sub: 'KPIs, กราฟแนวโน้มงานซ่อม, สถิติภาพรวม' },
-    { id: 'assets' as const, label: '02. ทะเบียนครุภัณฑ์', sub: 'ค้นหา, ทะเบียนคุม สธ., QR Code, ประวัติการซ่อม' },
-    { id: 'inventory' as const, label: '03. คลังอะไหล่', sub: 'สต็อกอะไหล่, เบิกจ่าย, จุดสั่งซื้อขั้นต่ำ' },
-    { id: 'work-orders' as const, label: '04. ใบแจ้งซ่อม', sub: 'แจ้งซ่อมใหม่, ติดตามสถานะ, บันทึกการปิดงาน' },
-    { id: 'pm-calibration' as const, label: '05. บำรุงรักษาเชิงป้องกัน', sub: 'แผน PM, สอบเทียบเครื่องมือแพทย์, ล้างแอร์' },
-    { id: 'reports' as const, label: '06. ระบบรายงาน', sub: '3 รายงานสรุปผลงานซ่อม, อะไหล่คงเหลือ, แผนจัดซื้อใหม่' },
-    { id: 'workforce' as const, label: '07. จัดการผู้ใช้ระบบ', sub: 'จัดการบัญชี, กำหนดสิทธิ์ฟังก์ชั่น (สงวนเฉพาะ Super Admin)' },
+  const AVAILABLE_SYSTEM_MENUS: { id: NavTabId; label: string; sub: string }[] = [
+    { id: 'dashboard', label: '01. แดชบอร์ดภาพรวม', sub: 'KPIs, กราฟแนวโน้มงานซ่อม, สถิติภาพรวม' },
+    { id: 'assets', label: '02. ทะเบียนครุภัณฑ์', sub: 'ค้นหา, ทะเบียนคุม สธ., QR Code, ประวัติการซ่อม' },
+    { id: 'inventory', label: '03. คลังอะไหล่', sub: 'สต็อกอะไหล่, เบิกจ่าย, จุดสั่งซื้อขั้นต่ำ' },
+    { id: 'work-orders', label: '04. ใบแจ้งซ่อม', sub: 'แจ้งซ่อมครุภัณฑ์, มอบหมายงาน, บันทึกการปิดงาน' },
+    { id: 'other-repairs', label: '05. ใบแจ้งซ่อมอื่นๆ', sub: 'งานอาคาร, สถานที่, ระบบสาธารณูปโภค & ทั่วไป' },
+    { id: 'pm-calibration', label: '06. บำรุงรักษาเชิงป้องกัน', sub: 'แผน PM, สอบเทียบเครื่องมือแพทย์, ล้างแอร์' },
+    { id: 'reports', label: '07. ระบบรายงาน', sub: '3 รายงานสรุปผลงานซ่อม, อะไหล่คงเหลือ, แผนจัดซื้อใหม่' },
+    { id: 'workforce', label: '08. จัดการผู้ใช้ระบบ', sub: 'จัดการบัญชี, กำหนดสิทธิ์ฟังก์ชั่น (สงวนเฉพาะ Super Admin)' },
   ];
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -243,18 +244,18 @@ export const WorkforceManagement: React.FC = () => {
       setSelectedMenusForPerm(user.allowedMenus);
     } else {
       if (user.role === 'super_admin') {
-        setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce']);
+        setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports', 'workforce']);
       } else if (user.role === 'supervisor') {
-        setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
+        setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports']);
       } else if (user.role === 'technician') {
-        setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
+        setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports']);
       } else {
-        setSelectedMenusForPerm(['work-orders']);
+        setSelectedMenusForPerm(['work-orders', 'other-repairs']);
       }
     }
   };
 
-  const handleToggleMenuPerm = (menuId: 'dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce') => {
+  const handleToggleMenuPerm = (menuId: NavTabId) => {
     setSelectedMenusForPerm(prev => 
       prev.includes(menuId) ? prev.filter(m => m !== menuId) : [...prev, menuId]
     );
@@ -263,16 +264,16 @@ export const WorkforceManagement: React.FC = () => {
   const handleApplyPreset = (preset: 'staff' | 'tech' | 'supervisor' | 'admin') => {
     if (preset === 'staff') {
       setSelectedRoleForPerm('department_staff');
-      setSelectedMenusForPerm(['work-orders']);
+      setSelectedMenusForPerm(['work-orders', 'other-repairs']);
     } else if (preset === 'tech') {
       setSelectedRoleForPerm('technician');
-      setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
+      setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports']);
     } else if (preset === 'supervisor') {
       setSelectedRoleForPerm('supervisor');
-      setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
+      setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports']);
     } else {
       setSelectedRoleForPerm('super_admin');
-      setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce']);
+      setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'other-repairs', 'pm-calibration', 'reports', 'workforce']);
     }
   };
 
@@ -1445,7 +1446,7 @@ export const WorkforceManagement: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="font-bold text-slate-700 font-display">
-                    เลือกฟังก์ชั่นที่อนุญาตให้เข้าใช้งานได้ ({selectedMenusForPerm.length}/7 เมนู)
+                    เลือกฟังก์ชั่นที่อนุญาตให้เข้าใช้งานได้ ({selectedMenusForPerm.length}/8 เมนู)
                   </label>
                   <span className="text-[11px] text-slate-400">
                     เมนูที่ไม่ได้รับอนุญาตจะไม่แสดงในแถบเมนูด้านซ้าย

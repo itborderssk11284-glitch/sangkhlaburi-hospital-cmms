@@ -5,11 +5,13 @@ import { TopBar } from './components/navigation/TopBar';
 import { AnalyticsDashboard } from './components/dashboard/AnalyticsDashboard';
 import { AssetManagement } from './components/assets/AssetManagement';
 import { WorkOrderManagement } from './components/work-orders/WorkOrderManagement';
+import { OtherRepairsManagement } from './components/work-orders/OtherRepairsManagement';
 import { PMCalibrationManagement } from './components/pm/PMCalibrationManagement';
 import { InventoryManagement } from './components/inventory/InventoryManagement';
 import { WorkforceManagement } from './components/workforce/WorkforceManagement';
 import { ReportsManagement } from './components/reports/ReportsManagement';
 import { NewRepairModal } from './components/work-orders/NewRepairModal';
+import { NewOtherRepairModal } from './components/work-orders/NewOtherRepairModal';
 import { AssetDetailModal } from './components/assets/AssetDetailModal';
 import { PrintableWorkOrder } from './components/common/PrintableWorkOrder';
 import { PrintableQRBadge } from './components/common/PrintableQRBadge';
@@ -35,6 +37,7 @@ function MainContent() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNewRepairModalOpen, setIsNewRepairModalOpen] = useState(false);
+  const [isNewOtherRepairModalOpen, setIsNewOtherRepairModalOpen] = useState(false);
   const [targetAssetForRepair, setTargetAssetForRepair] = useState<Asset | null>(null);
 
   const handleOpenRepairForAsset = (asset: Asset) => {
@@ -81,6 +84,11 @@ function MainContent() {
             }} 
           />
         )}
+        {activeTab === 'other-repairs' && (
+          <OtherRepairsManagement 
+            onOpenNewOtherRepairModal={() => setIsNewOtherRepairModalOpen(true)} 
+          />
+        )}
         {activeTab === 'pm-calibration' && <PMCalibrationManagement />}
         {activeTab === 'inventory' && <InventoryManagement />}
         {activeTab === 'workforce' && <WorkforceManagement />}
@@ -121,6 +129,12 @@ function MainContent() {
             setIsNewRepairModalOpen(false);
             setTargetAssetForRepair(null);
           }}
+        />
+      )}
+
+      {isNewOtherRepairModalOpen && (
+        <NewOtherRepairModal
+          onClose={() => setIsNewOtherRepairModalOpen(false)}
         />
       )}
 

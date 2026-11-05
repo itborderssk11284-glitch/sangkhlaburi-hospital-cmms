@@ -205,7 +205,7 @@ export const WorkOrderDetailModal: React.FC<{
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-white mt-1">
-                  {order.assetName}
+                  {order.orderType === 'general' ? (order.customItemName || order.assetName) : order.assetName}
                 </h3>
               </div>
             </div>
@@ -348,8 +348,8 @@ export const WorkOrderDetailModal: React.FC<{
             {/* Metadata Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
               <div>
-                <span className="text-slate-400 block">รหัสครุภัณฑ์:</span>
-                <span className="font-mono font-bold text-slate-900">{order.assetCode}</span>
+                <span className="text-slate-400 block">{order.orderType === 'general' ? 'ประเภทการซ่อม:' : 'รหัสครุภัณฑ์:'}</span>
+                <span className="font-mono font-bold text-slate-900">{order.orderType === 'general' ? 'งานซ่อมทั่วไป/อาคาร' : order.assetCode}</span>
               </div>
               <div>
                 <span className="text-slate-400 block">แผนกผู้แจ้ง:</span>
