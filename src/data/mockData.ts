@@ -1607,9 +1607,9 @@ export const DEFAULT_ADMIN_USER: SystemUser = {
   id: 'usr-admin',
   username: 'admin',
   password: 'sskhos',
-  fullName: 'ผู้ดูแลระบบสารสนเทศ (Administrator)',
+  fullName: 'ผู้ดูแลระบบสารสนเทศ (Admin)',
   role: 'super_admin',
-  roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
+  roleName: 'ผู้ดูแลระบบ (Admin)',
   department: '17. สารสนเทศ',
   phone: '082-998-4411 (ต่อ 145)',
   email: 'admin.it@skh.moph.go.th',
@@ -1630,91 +1630,98 @@ export const SAMPLE_USERS_FOR_DEMO: SystemUser[] = [
     password: 'admin1234',
     fullName: 'นายวรพจน์ ธนสารพาณิชย์',
     role: 'super_admin',
-    roleName: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
+    roleName: 'ผู้ดูแลระบบ (Admin)',
     department: '17. สารสนเทศ',
     phone: '082-998-4411 (ต่อ 145)',
     email: 'worapoj.it@skh.moph.go.th',
     status: 'active',
     lastLogin: 'วันนี้ 10:14 น.',
-    permissions: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export']
+    permissions: ['all_access', 'asset_edit', 'repair_manage', 'inventory_manage', 'user_manage', 'report_export'],
+    allowedMenus: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce']
   },
   {
     id: 'usr-02',
     username: 'anurak.eng',
     fullName: 'นายอนุรักษ์ วงศ์สว่าง',
     role: 'supervisor',
-    roleName: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร (Supervisor)',
+    roleName: 'ผู้บริหาร (Executive / Director)',
     department: '1. บริหารทั่วไป',
     phone: '086-554-1290 (ต่อ 140)',
     email: 'anurak.eng@skh.moph.go.th',
     status: 'active',
     lastLogin: 'วันนี้ 09:30 น.',
-    permissions: ['repair_assign', 'repair_approve', 'pm_manage', 'inventory_issue', 'report_export']
+    permissions: ['repair_assign', 'repair_approve', 'pm_manage', 'inventory_issue', 'report_export'],
+    allowedMenus: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']
   },
   {
     id: 'usr-03',
     username: 'kittisak.med',
     fullName: 'นายกิตติศักดิ์ พัฒนไพศาล',
     role: 'technician',
-    roleName: 'วิศวกรชีวการแพทย์ชำนาญการ (Biomedical Engineer)',
+    roleName: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
     department: '1. บริหารทั่วไป',
     phone: '081-445-9821 (ต่อ 141)',
     email: 'kittisak.med@skh.moph.go.th',
     status: 'active',
     lastLogin: 'วันนี้ 08:45 น.',
-    permissions: ['repair_update', 'pm_execute', 'calibration_cert', 'part_request']
+    permissions: ['repair_update', 'pm_execute', 'calibration_cert', 'part_request'],
+    allowedMenus: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']
   },
   {
     id: 'usr-04',
     username: 'teerapat.bio',
     fullName: 'นายธีรพัฒน์ สมบูรณ์ผล',
     role: 'technician',
-    roleName: 'นายช่างเครื่องมือแพทย์ปฏิบัติการ (Biomedical Technician)',
+    roleName: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
     department: '1. บริหารทั่วไป',
     phone: '089-771-3342 (ต่อ 142)',
     email: 'teerapat.bio@skh.moph.go.th',
     status: 'active',
     lastLogin: 'วันนี้ 08:15 น.',
-    permissions: ['repair_update', 'pm_execute', 'part_request']
+    permissions: ['repair_update', 'pm_execute', 'part_request'],
+    allowedMenus: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']
   },
   {
     id: 'usr-05',
     username: 'kannika.opd',
     fullName: 'พว.กรรณิการ์ มั่นคง',
     role: 'department_staff',
-    roleName: 'พยาบาลวิชาชีพชำนาญการ (ผู้ตรวจรับงาน OPD)',
+    roleName: 'ผู้ใช้งานทั่วไป (General User)',
     department: '3. ผู้ป่วยนอก',
     phone: '034-595021 ต่อ 105',
     email: 'kannika.opd@skh.moph.go.th',
     status: 'active',
     lastLogin: 'เมื่อวานนี้ 15:20 น.',
-    permissions: ['repair_create', 'repair_inspect', 'asset_view']
+    permissions: ['repair_create', 'repair_inspect', 'asset_view'],
+    allowedMenus: ['work-orders']
   },
   {
     id: 'usr-06',
     username: 'chanikan.dent',
     fullName: 'ทพญ.ชนิกานต์ วงศ์สุวรรณ',
     role: 'department_staff',
-    roleName: 'ทันตแพทย์ชำนาญการ (หัวหน้ากลุ่มงานทันตกรรม)',
+    roleName: 'ผู้ใช้งานทั่วไป (General User)',
     department: '6. ทันตกรรม',
     phone: '081-332-9011 (ต่อ 120)',
     email: 'chanikan.dent@skh.moph.go.th',
     status: 'active',
     lastLogin: '27 ต.ค. 2569',
-    permissions: ['repair_create', 'repair_inspect', 'asset_view']
+    permissions: ['repair_create', 'repair_inspect', 'asset_view'],
+    allowedMenus: ['work-orders']
   },
   {
     id: 'usr-07',
     username: 'chaiya.or',
     fullName: 'นพ.ไชยา รัตนปิติ',
     role: 'department_staff',
-    roleName: 'นายแพทย์ชำนาญการพิเศษ (หัวหน้ากลุ่มงานศัลยกรรม/ห้องผ่าตัด)',
+    roleName: 'ผู้ใช้งานทั่วไป (General User)',
     department: '15. ห้องคลอด',
     phone: '034-595021 ต่อ 130',
     email: 'chaiya.or@skh.moph.go.th',
     status: 'active',
     lastLogin: '26 ต.ค. 2569',
-    permissions: ['repair_create', 'repair_inspect', 'asset_view']
+    permissions: ['repair_create', 'repair_inspect', 'asset_view'],
+    allowedMenus: ['work-orders']
   },
   {
     id: 'usr-pending-01',
@@ -1722,13 +1729,14 @@ export const SAMPLE_USERS_FOR_DEMO: SystemUser[] = [
     password: 'password123',
     fullName: 'พว.สมหญิง วงศ์ใจ',
     role: 'department_staff',
-    roleName: 'พยาบาลวิชาชีพปฏิบัติการ (ขอสิทธิ์แจ้งซ่อม ER)',
+    roleName: 'ผู้ใช้งานทั่วไป (ขอสิทธิ์เข้าใช้งาน)',
     department: '5. อุบัติเหตุฉุกเฉิน',
     phone: '081-998-3321',
     email: 'somying.er@skh.moph.go.th',
     status: 'pending',
     registeredDate: '2026-10-30 08:30 น.',
-    permissions: ['repair_create', 'asset_view']
+    permissions: ['repair_create', 'asset_view'],
+    allowedMenus: ['work-orders']
   }
 ];
 

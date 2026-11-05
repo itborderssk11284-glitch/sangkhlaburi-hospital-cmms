@@ -19,7 +19,9 @@ import { useApp } from '../../context/AppContext';
 import { SparePart } from '../../types';
 
 export const InventoryManagement: React.FC = () => {
-  const { spareParts, addSparePart, restockPart, deleteSparePart } = useApp();
+  const { spareParts, addSparePart, restockPart, deleteSparePart, currentUser } = useApp();
+
+  const canManageInventory = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ทั้งหมด');
@@ -140,13 +142,15 @@ export const InventoryManagement: React.FC = () => {
             <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>ส่งออก CSV</span>
           </button>
-          <button
-            onClick={() => setIsNewPartModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>เพิ่มรายการอะไหล่ใหม่</span>
-          </button>
+          {canManageInventory && (
+            <button
+              onClick={() => setIsNewPartModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>เพิ่มรายการอะไหล่ใหม่</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -316,27 +320,31 @@ export const InventoryManagement: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRestockTargetPart(part);
-                              setRestockQty(5);
-                            }}
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-semibold text-xs border border-emerald-200 transition cursor-pointer"
-                            title="รับเข้าสต็อก"
-                          >
-                            รับเข้า (+)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTargetPart(part)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                            title="ลบรายการอะไหล่นี้"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {canManageInventory ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRestockTargetPart(part);
+                                setRestockQty(5);
+                              }}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-semibold text-xs border border-emerald-200 transition cursor-pointer"
+                              title="รับเข้าสต็อก"
+                            >
+                              รับเข้า (+)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTargetPart(part)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              title="ลบรายการอะไหล่นี้"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">ดูได้อย่างเดียว</span>
+                        )}
                       </td>
                     </tr>
                   );

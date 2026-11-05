@@ -155,11 +155,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (currentUser.allowedMenus && currentUser.allowedMenus.length > 0) {
       return currentUser.allowedMenus.includes(item.id);
     }
-    // Fallback role defaults
-    if (currentUser.role === 'supervisor') return true;
-    if (currentUser.role === 'technician') return ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'].includes(item.id);
-    return ['dashboard', 'assets', 'work-orders'].includes(item.id);
+    // Fallback role defaults:
+    // 2. ผู้บริหาร: 01. แดชบอร์ด, 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. บำรุงรักษาเชิงป้องกัน, 06. ระบบรายงาน
+    if (currentUser.role === 'supervisor') {
+      return ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'].includes(item.id);
+    }
+    // 3. ช่างและเจ้าหน้าที่พัสดุ: 02. ทะเบียนครุภัณฑ์, 03. คลังอะไหล่, 04. ใบแจ้งซ่อม, 05. บำรุงรักษาเชิงป้องกัน, 06. ระบบรายงาน
+    if (currentUser.role === 'technician') {
+      return ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'].includes(item.id);
+    }
+    // 4. ผู้ใช้งานทั่วไป: 04. ใบแจ้งซ่อม (เข้าพิมพ์ได้ แต่ไม่สามารถเข้าไปแก้ไขได้)
+    if (currentUser.role === 'department_staff') {
+      return ['work-orders'].includes(item.id);
+    }
+    return ['work-orders'].includes(item.id);
   });
+
+  // Ensure activeTab is always one of the visibleNavItems for the logged in role
+  React.useEffect(() => {
+    if (visibleNavItems.length > 0 && !visibleNavItems.some(item => item.id === activeTab)) {
+      setActiveTab(visibleNavItems[0].id);
+    }
+  }, [visibleNavItems, activeTab, setActiveTab]);
 
   return (
     <>

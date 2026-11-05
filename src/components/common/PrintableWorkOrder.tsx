@@ -1,33 +1,95 @@
 import React from 'react';
-import { Printer, X, CheckCircle, ShieldAlert } from 'lucide-react';
+import { Printer, X, Image as ImageIcon } from 'lucide-react';
 import { WorkOrder, Asset } from '../../types';
-import { QRCodeView } from './QRCodeView';
+import { GarudaEmblem } from './GarudaEmblem';
+import { useApp } from '../../context/AppContext';
 
 export const PrintableWorkOrder: React.FC<{
   order: WorkOrder;
   asset?: Asset;
   onClose: () => void;
 }> = ({ order, asset, onClose }) => {
+  const { currentUser } = useApp();
+
   const handlePrint = () => {
     window.print();
   };
 
+  const images = order.images || (order.photoUrl ? [order.photoUrl] : []);
+
+  // Determine checkbox states for maintenance assessment
+  const assessment = order.repairTypeAssessment || 'internal_free';
+  const isApproved = order.approvalStatus === 'approved';
+  const isRejected = order.approvalStatus === 'rejected';
+
+  // Strictly "กจ ๐๐๓.๓๐๘.๑/" without appended numbers as requested
+  const docNo = 'กจ ๐๐๓.๓๐๘.๑/';
+
+  // ผู้ส่งซ่อม ให้ขึ้นชื่อตามที่ Login
+  const reporterDisplayName = currentUser?.fullName || order.reporterName || '........................................................';
+  const reporterDisplayPhone = currentUser?.phone || order.reporterPhone || '';
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      {/* Print Style Injections for A4 & TH SarabunPSK 16pt */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
+        
+        .sarabun-memo {
+          font-family: 'TH SarabunPSK', 'TH Sarabun New', 'Sarabun', sans-serif !important;
+          font-size: 16pt !important;
+          line-height: 1.25 !important;
+          color: #000000 !important;
+        }
+        .sarabun-memo strong, .sarabun-memo b {
+          font-weight: 700 !important;
+        }
+        
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm 15mm 10mm 15mm;
+          }
+          body {
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #printable-order-sheet {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .page-break {
+            page-break-before: always;
+          }
+        }
+      `}</style>
+
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full my-auto overflow-hidden border border-slate-200">
+        
         {/* Modal Action Bar (hidden on print) */}
-        <div className="bg-slate-800 text-white px-6 py-3 flex items-center justify-between no-print">
+        <div className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between no-print border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-emerald-400" />
-            <span className="font-semibold text-sm">แบบฟอร์มใบสั่งซ่อมและรายงานผลการซ่อมบำรุง (เอกสารราชการ)</span>
+            <div>
+              <span className="font-semibold text-sm">แบบฟอร์มบันทึกข้อความ ขออนุมัติซ่อมบำรุงพัสดุ-ครุภัณฑ์ (TH SarabunPSK ขนาด 16)</span>
+              <span className="text-xs text-slate-400 ml-2">ผู้ส่งซ่อม: {reporterDisplayName}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition cursor-pointer shadow-xs"
             >
               <Printer className="w-4 h-4" />
-              <span>พิมพ์เอกสาร (Print / PDF)</span>
+              <span>พิมพ์เอกสารราชการ (Print / PDF)</span>
             </button>
             <button
               onClick={onClose}
@@ -38,249 +100,377 @@ export const PrintableWorkOrder: React.FC<{
           </div>
         </div>
 
-        {/* Printable Document Body */}
-        <div className="p-8 sm:p-12 text-slate-900 bg-white" id="printable-order-sheet">
-          {/* Official Letterhead */}
-          <div className="border-b-2 border-emerald-900 pb-4 mb-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <img
-                  src="/assets/aistudio/Logo_SK_-_______26693d5e.png"
-                  alt="Logo"
-                  className="w-20 h-20 object-contain"
-                />
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-emerald-950">
-                    โรงพยาบาลสังขละบุรี
-                  </h2>
-                  <p className="text-xs text-slate-600">
-                    สังกัดสำนักงานสาธารณสุขจังหวัดกาญจนบุรี กระทรวงสาธารณสุข
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    เลขที่ 1 หมู่ 3 ต.หนองลู อ.สังขละบุรี จ.กาญจนบุรี 71240 โทร. 034-595-021
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <div className="inline-block border border-slate-300 rounded p-2 text-center bg-slate-50">
-                  <QRCodeView value={`SKH-WO:${order.orderNumber}`} size={64} />
-                  <span className="text-[10px] text-slate-500 font-mono block mt-1">{order.orderNumber}</span>
-                </div>
-              </div>
+        {/* Printable Official Government Memorandum Sheet */}
+        <div 
+          className="p-8 sm:p-12 text-slate-900 bg-white leading-tight font-sans sarabun-memo" 
+          id="printable-order-sheet"
+        >
+          {/* Header: Royal Thai Garuda Emblem Centered at Top (NO LOGO ON LEFT) */}
+          <div className="text-center pb-1 mb-1">
+            <div className="flex justify-center">
+              <GarudaEmblem size={56} />
             </div>
-
-            <div className="text-center mt-3">
-              <h3 className="text-base font-bold text-slate-800 uppercase tracking-wide">
-                ใบแจ้งซ่อมและรายงานผลการซ่อมบำรุงครุภัณฑ์ (Work Order Report)
-              </h3>
-            </div>
+            <h1 
+              className="font-bold text-slate-950 tracking-normal mt-0.5 leading-none"
+              style={{ fontSize: '24pt' }}
+            >
+              บันทึกข้อความ
+            </h1>
           </div>
 
-          {/* Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs mb-6">
-            <div>
-              <span className="text-slate-500 block">เลขที่ใบแจ้งซ่อม:</span>
-              <span className="font-bold text-sm text-slate-900 font-mono">{order.orderNumber}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">วันที่แจ้งซ่อม:</span>
-              <span className="font-semibold text-slate-800">{order.reportDate}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">ระดับความเร่งด่วน:</span>
-              <span className={`font-bold ${
-                order.priority === 'emergency' ? 'text-rose-600' :
-                order.priority === 'urgent' ? 'text-amber-600' : 'text-slate-700'
-              }`}>
-                {order.priority === 'emergency' ? 'ฉุกเฉินระดับวิกฤต (Life Support)' :
-                 order.priority === 'urgent' ? 'เร่งด่วนมาก (High Priority)' : 'ปกติ (Routine)'}
+          {/* Memo Metadata Lines */}
+          <div className="space-y-1 border-b-2 border-slate-900 pb-2 mb-2">
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              <span className="font-bold">ส่วนราชการ:</span>
+              <span className="flex-1 border-b border-dotted border-slate-500 pb-0.5">
+                โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป โทร. ๐๓๔-๕๙๕๐๓๐ ต่อ ๒๐๕
               </span>
             </div>
-            <div>
-              <span className="text-slate-500 block">สถานะปัจจุบัน:</span>
-              <span className="font-bold text-emerald-800">
-                {order.status === 'completed' ? 'ซ่อมเสร็จสมบูรณ์ / ตรวจรับแล้ว' :
-                 order.status === 'in_progress' ? 'กำลังดำเนินการซ่อม' :
-                 order.status === 'waiting_parts' ? 'รออะไหล่' :
-                 order.status === 'external' ? 'ส่งซ่อมศูนย์ภายนอก' : 'รอดำเนินการ'}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-bold">ที่:</span>
+                <span className="flex-1 border-b border-dotted border-slate-500 pb-0.5 font-mono">
+                  {docNo}............................................................
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-bold">วันที่:</span>
+                <span className="flex-1 border-b border-dotted border-slate-500 pb-0.5">
+                  {order.reportDate}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-bold">เรื่อง:</span>
+              <span className="flex-1 font-semibold border-b border-dotted border-slate-500 pb-0.5">
+                ขออนุมัติซ่อมบำรุงพัสดุ-ครุภัณฑ์
               </span>
             </div>
-          </div>
 
-          {/* Section 1: Equipment & Reporter Info */}
-          <div className="mb-6">
-            <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider border-b border-emerald-800 pb-1 mb-2">
-              1. ข้อมูลครุภัณฑ์และหน่วยงานผู้แจ้งซ่อม
-            </h4>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-              <div>
-                <span className="text-slate-500">รหัสครุภัณฑ์ (Asset No.): </span>
-                <span className="font-semibold font-mono text-slate-900">{order.assetCode}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">หมายเลขซีเรียล (S/N): </span>
-                <span className="font-semibold font-mono text-slate-800">{asset?.serialNumber || '-'}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-slate-500">ชื่อครุภัณฑ์: </span>
-                <span className="font-bold text-slate-900">{order.assetName}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">ยี่ห้อ / รุ่น: </span>
-                <span className="font-semibold text-slate-800">{asset ? `${asset.brand} / ${asset.model}` : '-'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">แผนก / ที่ตั้งเครื่อง: </span>
-                <span className="font-semibold text-slate-800">{order.department} {asset?.locationDetail ? `(${asset.locationDetail})` : ''}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">ชื่อผู้แจ้งซ่อม: </span>
-                <span className="font-semibold text-slate-800">{order.reporterName}</span>
-              </div>
-              <div>
-                <span className="text-slate-500">เบอร์โทรศัพท์ / ต่อภายใน: </span>
-                <span className="font-semibold text-slate-800">{order.reporterPhone}</span>
-              </div>
+            <div className="flex items-baseline gap-1.5 pt-0.5">
+              <span className="font-bold">เรียน:</span>
+              <span>ผู้อำนวยการโรงพยาบาลสังขละบุรี</span>
             </div>
           </div>
 
-          {/* Section 2: Fault Symptom */}
-          <div className="mb-6">
-            <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider border-b border-emerald-800 pb-1 mb-2">
-              2. อาการขัดข้อง / ปัญหาที่ตรวจพบ (Failure Symptom)
-            </h4>
-            <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs leading-relaxed text-slate-800">
-              <p className="font-medium text-slate-900 mb-1">{order.symptom}</p>
-              {order.errorDetails && (
-                <p className="text-slate-600 mt-1 italic">
-                  <strong>รายละเอียดเพิ่มเติม:</strong> {order.errorDetails}
-                </p>
-              )}
-            </div>
-          </div>
+          {/* Body Section 1: Equipment and Symptom */}
+          <div className="space-y-1.5 mb-2.5">
+            <p className="indent-8 text-justify leading-snug">
+              ด้วย {order.department ? <span className="font-bold">{order.department}</span> : '...................................................'} มีความประสงค์ขอส่งซ่อมบำรุงพัสดุ/ครุภัณฑ์ จำนวน ๑ รายการ ดังนี้
+            </p>
 
-          {/* Section 3: Diagnosis & Action Taken */}
-          <div className="mb-6">
-            <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider border-b border-emerald-800 pb-1 mb-2">
-              3. ผลการตรวจวิเคราะห์และการดำเนินการซ่อม (Action Taken)
-            </h4>
-            <div className="space-y-2 text-xs">
-              <div>
-                <span className="font-semibold text-slate-700">สาเหตุของปัญหา (Root Cause): </span>
-                <span className="text-slate-800">{order.rootCause || 'ตรวจเช็คตามขั้นตอนมาตรฐาน'}</span>
+            <div className="pl-6 space-y-1 border-l-2 border-emerald-900/40 ml-2">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-bold">๑. เครื่อง / ยี่ห้อ:</span>
+                <span className="font-semibold text-slate-900 underline decoration-slate-400 underline-offset-4">
+                  {order.brand ? `${order.brand} ` : ''}{order.assetName}
+                </span>
+                <span className="font-bold ml-2">รุ่น:</span>
+                <span className="font-semibold text-slate-900 underline decoration-slate-400 underline-offset-4">
+                  {order.model || asset?.model || '-'}
+                </span>
               </div>
-              <div>
-                <span className="font-semibold text-slate-700">การดำเนินการแก้ไข (Action Taken): </span>
-                <span className="text-slate-800">{order.actionTaken || 'อยู่ระหว่างการดำเนินการตรวจซ่อม'}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-1">
-                <div>
-                  <span className="text-slate-500">วันที่เริ่มดำเนินการ: </span>
-                  <span className="font-semibold text-slate-800">{order.repairStartDate || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">วันที่แล้วเสร็จ: </span>
-                  <span className="font-semibold text-slate-800">{order.repairEndDate || '-'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Section 4: Parts Consumed Table */}
-          <div className="mb-6">
-            <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider border-b border-emerald-800 pb-1 mb-2">
-              4. รายการอะไหล่และอุปกรณ์ที่ใช้ (Spare Parts Consumed)
-            </h4>
-            <table className="w-full text-xs border border-slate-200 rounded">
-              <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="py-1.5 px-3 text-left">ลำดับ</th>
-                  <th className="py-1.5 px-3 text-left">รหัสอะไหล่</th>
-                  <th className="py-1.5 px-3 text-left">รายการอะไหล่ / ชิ้นส่วน</th>
-                  <th className="py-1.5 px-3 text-center">จำนวน</th>
-                  <th className="py-1.5 px-3 text-right">ราคาต่อหน่วย (บาท)</th>
-                  <th className="py-1.5 px-3 text-right">รวมเป็นเงิน (บาท)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {order.usedParts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-3 text-center text-slate-400">
-                      - ไม่มีการเบิกใช้อะไหล่ (ซ่อมปรับแต่ง/ตั้งค่าระบบ) -
-                    </td>
-                  </tr>
-                ) : (
-                  order.usedParts.map((part, idx) => (
-                    <tr key={part.partId}>
-                      <td className="py-1.5 px-3 text-center text-slate-500">{idx + 1}</td>
-                      <td className="py-1.5 px-3 font-mono text-slate-700">{part.partCode}</td>
-                      <td className="py-1.5 px-3 font-medium text-slate-900">{part.partName}</td>
-                      <td className="py-1.5 px-3 text-center">{part.quantity}</td>
-                      <td className="py-1.5 px-3 text-right">{part.unitPrice.toLocaleString()}</td>
-                      <td className="py-1.5 px-3 text-right font-medium">{part.totalPrice.toLocaleString()}</td>
-                    </tr>
-                  ))
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-bold">อาการชำรุด:</span>
+                <span className="flex-1 text-slate-900 font-medium bg-amber-50/50 px-2 py-0.5 rounded border border-amber-200/60">
+                  {order.symptom} {order.errorDetails ? `(${order.errorDetails})` : ''}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="font-bold">หมายเลขครุภัณฑ์:</span>
+                <span className="font-mono font-bold text-slate-900 px-2 py-0.2 bg-slate-100 rounded">
+                  {order.assetCode}
+                </span>
+                {asset?.serialNumber && (
+                  <>
+                    <span className="font-bold ml-2">S/N:</span>
+                    <span className="font-mono text-slate-800">{asset.serialNumber}</span>
+                  </>
                 )}
-                {order.externalCost ? (
-                  <tr>
-                    <td colSpan={5} className="py-1.5 px-3 text-right font-medium text-slate-700">
-                      ค่าบริการ/ส่งซ่อมศูนย์ภายนอก ({order.externalVendorName}):
-                    </td>
-                    <td className="py-1.5 px-3 text-right font-medium">{order.externalCost.toLocaleString()}</td>
-                  </tr>
-                ) : null}
-                <tr className="bg-slate-50 font-bold border-t border-slate-300">
-                  <td colSpan={5} className="py-2 px-3 text-right text-slate-900">
-                    รวมมูลค่าค่าใช้จ่ายซ่อมบำรุงทั้งสิ้น:
-                  </td>
-                  <td className="py-2 px-3 text-right text-emerald-900 text-sm">
-                    {order.totalCost.toLocaleString()} บาท
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Section 5: Three-Party Signatures */}
-          <div className="pt-4 border-t border-slate-300">
-            <div className="grid grid-cols-3 gap-6 text-center text-xs">
-              <div className="flex flex-col items-center">
-                <div className="h-14 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">
-                    {order.assignedTechName ? order.assignedTechName : '.........................................'}
-                  </span>
-                </div>
-                <span className="font-semibold text-slate-800 mt-2">
-                  ({order.assignedTechName || '...................................................'})
-                </span>
-                <span className="text-[11px] text-slate-500">ช่าง / วิศวกรผู้ดำเนินการซ่อม</span>
-                <span className="text-[11px] text-slate-400 mt-1">วันที่ {order.repairEndDate || '....../....../......'}</span>
               </div>
 
-              <div className="flex flex-col items-center">
-                <div className="h-14 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">นายอนุรักษ์ วงศ์สว่าง</span>
-                </div>
-                <span className="font-semibold text-slate-800 mt-2">(นายอนุรักษ์ วงศ์สว่าง)</span>
-                <span className="text-[11px] text-slate-500">หัวหน้างานซ่อมบำรุงวิศวกรรมการแพทย์</span>
-                <span className="text-[11px] text-slate-400 mt-1">วันที่ {order.repairEndDate || '....../....../......'}</span>
-              </div>
-
-              <div className="flex flex-col items-center">
-                <div className="h-14 border-b border-slate-400 w-44 flex items-end justify-center pb-1">
-                  <span className="text-[11px] font-serif text-slate-600 italic">
-                    {order.inspectorName || order.reporterName}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-bold">บริษัท:</span>
+                  <span className="flex-1 border-b border-dotted border-slate-400">
+                    {order.vendor || asset?.vendor || '-'}
                   </span>
                 </div>
-                <span className="font-semibold text-slate-800 mt-2">
-                  ({order.inspectorName || order.reporterName || '...................................................'})
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-bold">โทรศัพท์:</span>
+                  <span className="flex-1 border-b border-dotted border-slate-400 font-mono">
+                    {order.vendorPhone || asset?.vendorPhone || '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-0.5">
+                <span className="font-bold">ระดับความเร่งด่วน:</span>
+                <span className={`px-2 py-0.2 rounded font-bold text-sm ${
+                  order.priority === 'urgent' || order.priority === 'emergency' 
+                    ? 'bg-rose-100 text-rose-900 border border-rose-300' 
+                    : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                }`}>
+                  {order.priority === 'urgent' || order.priority === 'emergency' ? '● ด่วนมาก' : '● งานปกติ'}
                 </span>
-                <span className="text-[11px] text-slate-500">ผู้ตรวจรับงาน / หัวหน้าแผนกผู้ใช้</span>
-                <span className="text-[11px] text-slate-400 mt-1">วันที่ {order.inspectionDate || '....../....../......'}</span>
+              </div>
+            </div>
+
+            {/* Reporter Signature (ขึ้นชื่อตามที่ login) */}
+            <div className="flex justify-end pt-0.5">
+              <div className="text-center w-64">
+                <div className="h-8 border-b border-dotted border-slate-500 flex items-end justify-center pb-0.5">
+                  <span className="italic font-serif text-slate-700">{reporterDisplayName}</span>
+                </div>
+                <div className="mt-0.5 font-bold text-slate-900">
+                  ({reporterDisplayName})
+                </div>
+                <div className="text-slate-700 text-sm">ผู้ส่งซ่อม</div>
+                <div className="text-slate-500 text-xs font-mono">
+                  {reporterDisplayPhone ? `โทร. ${reporterDisplayPhone}` : ''}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Body Section 2: Maintenance Section Assessment (บันทึกหน่วยงานซ่อมบำรุง) */}
+          <div className="border border-slate-400 rounded-lg p-2.5 mb-2 bg-slate-50/50">
+            <h3 className="font-bold text-slate-900 mb-1 border-b border-slate-300 pb-0.5 flex items-center justify-between">
+              <span>บันทึกหน่วยงานซ่อมบำรุง / ฝ่ายบริหารทั่วไป</span>
+              <span className="text-xs text-slate-500 font-normal">เรียน ผู้อำนวยการโรงพยาบาลสังขละบุรี</span>
+            </h3>
+            
+            <p className="mb-1">ได้ตรวจสอบสภาพเครื่องดังกล่าวแล้ว เห็นสมควร:</p>
+
+            <div className="space-y-1 pl-3">
+              {/* Option 1: ซ่อมได้เอง ไม่เสียค่าใช้จ่าย */}
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold">
+                  {assessment === 'internal_free' ? '[✓]' : '[  ]'}
+                </span>
+                <span>
+                  ซ่อมได้เองโดยช่างของโรงพยาบาล ชื่อ{' '}
+                  <span className="font-semibold underline decoration-slate-400">
+                    {order.assignedTechName || '...................................................'}
+                  </span>{' '}
+                  <strong>ไม่เสียค่าใช้จ่าย</strong>
+                </span>
+              </div>
+
+              {/* Option 2: ซ่อมได้เอง โดยเสียค่าวัสดุ */}
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold">
+                  {assessment === 'internal_with_materials' ? '[✓]' : '[  ]'}
+                </span>
+                <span>
+                  ซ่อมได้เองโดยช่างของโรงพยาบาล ชื่อ{' '}
+                  <span className="font-semibold underline decoration-slate-400">
+                    {order.assignedTechName || '...................................................'}
+                  </span>{' '}
+                  <strong>โดยเสียค่าวัสดุเพิ่มเติม</strong>
+                </span>
+              </div>
+
+              {/* Option 3: ส่งซ่อมกองช่างบำรุง */}
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold">
+                  {assessment === 'division_repair' ? '[✓]' : '[  ]'}
+                </span>
+                <span>ส่งซ่อมกองช่างบำรุง</span>
+              </div>
+
+              <div className="pl-6 text-slate-800 flex flex-wrap gap-4 pt-0.5">
+                <span>
+                  ระยะเวลาการซ่อมประมาณ{' '}
+                  <strong className="underline font-mono">{order.estimatedRepairDays || '......'}</strong> วัน
+                </span>
+                <span>
+                  ค่าใช้จ่ายประมาณ{' '}
+                  <strong className="underline font-mono">
+                    {order.estimatedRepairCost ? order.estimatedRepairCost.toLocaleString() : '..........'}
+                  </strong> บาท
+                </span>
+              </div>
+
+              <div className="pt-0.5 text-slate-900 font-semibold">
+                ไม่สามารถซ่อมเองได้ จำเป็นต้องส่งซ่อมภายนอกหน่วยงาน
+              </div>
+
+              {/* Option 4: ส่งซ่อมบริษัท (ระบุชื่อบริษัทได้) */}
+              <div className="flex items-center gap-1.5 pl-3">
+                <span className="font-mono font-bold">
+                  {assessment === 'external_company' ? '[✓]' : '[  ]'}
+                </span>
+                <span>
+                  ส่งซ่อมบริษัท{' '}
+                  <span className="underline decoration-slate-400 font-semibold">
+                    {order.externalCompanyName || order.externalVendorName || order.vendor || '...........................................................................'}
+                  </span>
+                </span>
+              </div>
+
+              {/* Option 5: อื่น ๆ (พิมพ์ข้อความเพิ่มได้) */}
+              <div className="flex items-center gap-1.5 pl-3">
+                <span className="font-mono font-bold">
+                  {assessment === 'other' ? '[✓]' : '[  ]'}
+                </span>
+                <span>
+                  อื่น ๆ{' '}
+                  <span className="underline decoration-slate-400 font-semibold">
+                    {order.otherRepairAssessmentText || '...........................................................................'}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-1.5">
+              <div className="text-center w-60">
+                <div className="h-7 border-b border-dotted border-slate-500 flex items-end justify-center pb-0.5">
+                  <span className="italic font-serif text-slate-700">
+                    {order.maintenanceSectionSigner || order.assignedTechName || ''}
+                  </span>
+                </div>
+                <div className="mt-0.5 font-bold text-slate-900 text-sm">
+                  ({order.maintenanceSectionSigner || order.assignedTechName || '........................................................'})
+                </div>
+                <div className="text-slate-600 text-xs">เจ้าหน้าที่งานซ่อมบำรุง / พัสดุ</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Two-Column Official Sign-off: ความเห็นหัวหน้าเจ้าหน้าที่ และ คำสั่งอนุมัติ */}
+          <div className="grid grid-cols-2 gap-3 border border-slate-400 rounded-lg p-2.5 bg-white">
+            
+            {/* Left: ความเห็นของหัวหน้าเจ้าหน้าที่ */}
+            <div className="flex flex-col justify-between border-r border-slate-300 pr-3">
+              <div>
+                <p className="font-bold text-slate-900 mb-0.5">ความเห็นของหัวหน้าเจ้าหน้าที่:</p>
+                <div className="p-1.5 bg-slate-50 rounded border border-slate-200 text-slate-800 min-h-[44px] leading-snug">
+                  {order.headOfficerOpinion || 'เรียน ผู้อำนวยการโรงพยาบาลสังขละบุรี เพื่อโปรดพิจารณาอนุมัติให้ดำเนินการซ่อมบำรุงตามเสนอ'}
+                </div>
+              </div>
+
+              <div className="text-center mt-2">
+                <div className="h-7 border-b border-dotted border-slate-500 flex items-end justify-center pb-0.5">
+                  <span className="italic font-serif text-slate-700">
+                    {order.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา'}
+                  </span>
+                </div>
+                <div className="mt-0.5 font-bold text-slate-900">
+                  ({order.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา'})
+                </div>
+                <div className="text-slate-700 text-sm">
+                  ตำแหน่ง {order.headOfficerTitle || 'หัวหน้าเจ้าหน้าที่'}
+                </div>
+                <div className="text-slate-400 text-xs mt-0.5">
+                  วันที่ {order.reportDate}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: คำสั่ง / การอนุมัติ (ปุ่ม/เครื่องหมาย อนุมัติ และ ไม่อนุมัติ โชว์ชัดเจน) */}
+            <div className="flex flex-col justify-between pl-2">
+              <div>
+                <p className="font-bold text-slate-900 mb-1 flex items-center justify-between">
+                  <span>คำสั่ง / การอนุมัติ:</span>
+                  {isApproved && (
+                    <span className="text-emerald-800 text-xs font-bold bg-emerald-50 px-2 py-0.2 rounded border border-emerald-300">
+                      ✓ อนุมัติแล้ว
+                    </span>
+                  )}
+                  {isRejected && (
+                    <span className="text-rose-800 text-xs font-bold bg-rose-50 px-2 py-0.2 rounded border border-rose-300">
+                      ✕ ไม่อนุมัติ
+                    </span>
+                  )}
+                </p>
+                
+                {/* Explicit Checkboxes for อนุมัติ and ไม่อนุมัติ */}
+                <div className="flex items-center gap-6 my-1 font-bold">
+                  <span className="flex items-center gap-1">
+                    <span className="font-mono font-bold text-emerald-950">
+                      {isApproved ? '[✓]' : '[  ]'}
+                    </span>
+                    <span className={isApproved ? 'text-emerald-950 underline font-bold' : 'text-slate-800'}>
+                      อนุมัติ
+                    </span>
+                  </span>
+                  
+                  <span className="flex items-center gap-1">
+                    <span className="font-mono font-bold text-rose-950">
+                      {isRejected ? '[✓]' : '[  ]'}
+                    </span>
+                    <span className={isRejected ? 'text-rose-950 underline font-bold' : 'text-slate-800'}>
+                      ไม่อนุมัติ
+                    </span>
+                  </span>
+                </div>
+
+                {order.approvalComments ? (
+                  <p className="text-xs text-slate-700 mt-1 italic p-1 bg-slate-50 rounded border border-slate-200">
+                    คำสั่งเพิ่มเติม: {order.approvalComments}
+                  </p>
+                ) : (
+                  <div className="border-b border-dotted border-slate-300 mt-1 pb-0.5 text-xs text-slate-400">
+                    ........................................................................................................
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center mt-2">
+                <div className="h-7 border-b border-dotted border-slate-500 flex items-end justify-center pb-0.5">
+                  <span className="italic font-serif text-slate-700">
+                    {order.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์'}
+                  </span>
+                </div>
+                <div className="mt-0.5 font-bold text-slate-900">
+                  ({order.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์'})
+                </div>
+                <div className="text-slate-700 text-sm">
+                  {order.approverTitle || 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี'}
+                </div>
+                <div className="text-slate-500 text-xs font-mono">
+                  วันที่ {order.approvalDate || order.reportDate || '....../....../......'}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Section: Attached Photos (if any, prints cleanly on separate page if needed) */}
+          {images.length > 0 && (
+            <div className="mt-3 pt-2 border-t-2 border-slate-300 page-break">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 mb-1.5 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-emerald-800" />
+                <span>ภาพถ่ายสภาพครุภัณฑ์และอาการชำรุดที่แนบประกอบการพิจารณา ({images.length} ภาพ)</span>
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {images.map((img, idx) => (
+                  <div key={idx} className="border border-slate-300 rounded-lg overflow-hidden bg-slate-50 p-1 text-center">
+                    <img 
+                      src={img} 
+                      alt={`Attached photo ${idx + 1}`} 
+                      className="w-full h-32 object-contain bg-slate-100 rounded" 
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
+                      ภาพที่ {idx + 1}: สภาพเครื่อง / ปัญหาที่ตรวจพบ
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Footer Note (No Barcode) */}
+          <div className="mt-3 pt-1 border-t border-slate-200 text-xs text-slate-400 flex items-center justify-between">
+            <span>แบบฟอร์มบันทึกข้อความขออนุมัติซ่อมบำรุงพัสดุ-ครุภัณฑ์ โรงพยาบาลสังขละบุรี (TH SarabunPSK ขนาด 16)</span>
+            <span className="font-mono">รหัสครุภัณฑ์: {order.assetCode}</span>
+          </div>
+
         </div>
       </div>
     </div>

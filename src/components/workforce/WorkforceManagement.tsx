@@ -100,7 +100,7 @@ export const WorkforceManagement: React.FC = () => {
   });
 
   const [selectedMenusForNewUser, setSelectedMenusForNewUser] = useState<('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]>([
-    'dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'
+    'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'
   ]);
 
   // New technician form state (แอดมินเพิ่มช่างเทคนิค)
@@ -247,9 +247,9 @@ export const WorkforceManagement: React.FC = () => {
       } else if (user.role === 'supervisor') {
         setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
       } else if (user.role === 'technician') {
-        setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration']);
+        setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
       } else {
-        setSelectedMenusForPerm(['dashboard', 'assets', 'work-orders']);
+        setSelectedMenusForPerm(['work-orders']);
       }
     }
   };
@@ -263,10 +263,10 @@ export const WorkforceManagement: React.FC = () => {
   const handleApplyPreset = (preset: 'staff' | 'tech' | 'supervisor' | 'admin') => {
     if (preset === 'staff') {
       setSelectedRoleForPerm('department_staff');
-      setSelectedMenusForPerm(['dashboard', 'assets', 'work-orders']);
+      setSelectedMenusForPerm(['work-orders']);
     } else if (preset === 'tech') {
       setSelectedRoleForPerm('technician');
-      setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration']);
+      setSelectedMenusForPerm(['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
     } else if (preset === 'supervisor') {
       setSelectedRoleForPerm('supervisor');
       setSelectedMenusForPerm(['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports']);
@@ -546,10 +546,10 @@ export const WorkforceManagement: React.FC = () => {
                   className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="ทั้งหมด">บทบาททั้งหมด</option>
-                  <option value="super_admin">ผู้ดูแลระบบสูงสุด (Super Admin)</option>
-                  <option value="supervisor">หัวหน้างานซ่อมบำรุง (Supervisor)</option>
-                  <option value="technician">ช่างเทคนิค/วิศวกร (Technician)</option>
-                  <option value="department_staff">บุคลากรประจำแผนก (Department Staff)</option>
+                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น</option>
+                  <option value="supervisor">2. ผู้บริหาร (Executive / Director) - ดูได้อย่างเดียว เมนู 01-06</option>
+                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการเมนู 02-06</option>
+                  <option value="department_staff">4. ผู้ใช้งานทั่วไป (General User) - ดูและพิมพ์ใบแจ้งซ่อม</option>
                 </select>
               </div>
 
@@ -972,10 +972,10 @@ export const WorkforceManagement: React.FC = () => {
                   onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value as UserRole })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold"
                 >
-                  <option value="technician">ช่างเทคนิค / วิศวกรชีวการแพทย์ (Technician)</option>
-                  <option value="supervisor">หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร (Supervisor)</option>
-                  <option value="department_staff">บุคลากรประจำแผนก (Department Staff)</option>
-                  <option value="super_admin">ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)</option>
+                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - เมนู 02-06</option>
+                  <option value="supervisor">2. ผู้บริหาร (Executive / Director) - ดูได้อย่างเดียว เมนู 01-06</option>
+                  <option value="department_staff">4. ผู้ใช้งานทั่วไป (General User) - เมนู 04 ดูและพิมพ์</option>
+                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น</option>
                 </select>
               </div>
 
@@ -1393,50 +1393,50 @@ export const WorkforceManagement: React.FC = () => {
                   onChange={(e) => setSelectedRoleForPerm(e.target.value as UserRole)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-xs"
                 >
-                  <option value="department_staff">บุคลากรประจำแผนก (Department Staff)</option>
-                  <option value="technician">ช่างเทคนิค / วิศวกรชีวการแพทย์ (Technician)</option>
-                  <option value="supervisor">หัวหน้างานซ่อมบำรุง (Supervisor)</option>
-                  <option value="super_admin">ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)</option>
+                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น</option>
+                  <option value="supervisor">2. ผู้บริหาร (Executive / Director) - ดูได้อย่างเดียว เมนู 01-06</option>
+                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการเมนู 02-06</option>
+                  <option value="department_staff">4. ผู้ใช้งานทั่วไป (General User) - ดูและพิมพ์ใบแจ้งซ่อม</option>
                 </select>
               </div>
 
               {/* Quick Preset Buttons */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5 font-display">
-                  ชุดสิทธิ์สำเร็จรูป (Quick Presets)
+                  ชุดสิทธิ์สำเร็จรูป (Quick Presets ตามบทบาท 4 กลุ่ม)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
-                    onClick={() => handleApplyPreset('staff')}
-                    className="p-2 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 text-left transition cursor-pointer"
+                    onClick={() => handleApplyPreset('admin')}
+                    className="p-2.5 rounded-xl border border-purple-200 hover:border-purple-400 hover:bg-purple-50/70 text-left transition cursor-pointer"
                   >
-                    <p className="font-bold text-slate-800 text-[11px]">บุคลากรแผนก</p>
-                    <p className="text-[10px] text-slate-500">แจ้งซ่อม + ดูครุภัณฑ์</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset('tech')}
-                    className="p-2 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 text-left transition cursor-pointer"
-                  >
-                    <p className="font-bold text-slate-800 text-[11px]">ทีมช่างซ่อม</p>
-                    <p className="text-[10px] text-slate-500">ซ่อม + อะไหล่ + PM</p>
+                    <p className="font-bold text-purple-900 text-[11px]">1. แอดมิน (Admin)</p>
+                    <p className="text-[10px] text-purple-700">ทุก 7 ฟังก์ชั่น (Full Access)</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPreset('supervisor')}
-                    className="p-2 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 text-left transition cursor-pointer"
+                    className="p-2.5 rounded-xl border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/70 text-left transition cursor-pointer"
                   >
-                    <p className="font-bold text-slate-800 text-[11px]">หัวหน้างาน</p>
-                    <p className="text-[10px] text-slate-500">ดูรายงาน + ซ่อมบำรุง</p>
+                    <p className="font-bold text-indigo-900 text-[11px]">2. ผู้บริหาร</p>
+                    <p className="text-[10px] text-indigo-700">ดูได้อย่างเดียว เมนู 01-06</p>
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleApplyPreset('admin')}
-                    className="p-2 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 text-left transition cursor-pointer"
+                    onClick={() => handleApplyPreset('tech')}
+                    className="p-2.5 rounded-xl border border-blue-200 hover:border-blue-400 hover:bg-blue-50/70 text-left transition cursor-pointer"
                   >
-                    <p className="font-bold text-slate-800 text-[11px]">Super Admin</p>
-                    <p className="text-[10px] text-slate-500">เข้าถึงได้ทุก 7 ฟังก์ชั่น</p>
+                    <p className="font-bold text-blue-900 text-[11px]">3. ช่างและพัสดุ</p>
+                    <p className="text-[10px] text-blue-700">เพิ่ม/ลบ/แก้/พิมพ์ เมนู 02-06</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPreset('staff')}
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-left transition cursor-pointer"
+                  >
+                    <p className="font-bold text-slate-800 text-[11px]">4. ผู้ใช้งานทั่วไป</p>
+                    <p className="text-[10px] text-slate-600">เมนู 04 ดูและพิมพ์เท่านั้น</p>
                   </button>
                 </div>
               </div>

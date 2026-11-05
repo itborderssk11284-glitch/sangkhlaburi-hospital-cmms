@@ -106,11 +106,11 @@ export const TECHNICIANS_COLLECTION = 'technicians';
 export async function saveWorkOrderToFirestore(order: WorkOrder): Promise<void> {
   const docRef = doc(db, WORK_ORDERS_COLLECTION, order.id);
   try {
-    const payload = {
+    const payload = cleanUndefined({
       ...order,
       syncedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
+    });
     await setDoc(docRef, payload, { merge: true });
     console.log(`[Firebase] Work order ${order.orderNumber} synced to Firestore.`);
   } catch (error) {

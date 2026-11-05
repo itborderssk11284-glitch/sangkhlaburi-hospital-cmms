@@ -405,10 +405,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const roleNameMap: Record<UserRole, string> = {
-      super_admin: 'ผู้ดูแลระบบสารสนเทศ (Super Admin)',
-      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร',
-      technician: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
-      department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
+      super_admin: 'ผู้ดูแลระบบ (Admin)',
+      supervisor: 'ผู้บริหาร (Executive / Director)',
+      technician: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
+      department_staff: 'ผู้ใช้งานทั่วไป (General User)'
     };
 
     const permissionsMap: Record<UserRole, string[]> = {
@@ -421,8 +421,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const defaultMenusMap: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
       super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
       supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
-      department_staff: ['dashboard', 'assets', 'work-orders']
+      technician: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      department_staff: ['work-orders']
     };
 
     const newUser: SystemUser = {
@@ -458,17 +458,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[];
   }) => {
     const roleNameMap: Record<UserRole, string> = {
-      super_admin: 'ผู้ดูแลระบบสารสนเทศสูงสุด (Super Admin)',
-      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร (Supervisor)',
-      technician: 'ช่างเทคนิค/วิศวกรชีวการแพทย์ (Technician)',
-      department_staff: 'บุคลากรประจำแผนกผู้แจ้งซ่อม (Department Staff)'
+      super_admin: 'ผู้ดูแลระบบ (Admin)',
+      supervisor: 'ผู้บริหาร (Executive / Director)',
+      technician: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
+      department_staff: 'ผู้ใช้งานทั่วไป (General User)'
     };
 
     const defaultMenusMap: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
       super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
       supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
-      department_staff: ['dashboard', 'assets', 'work-orders']
+      technician: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      department_staff: ['work-orders']
     };
 
     const newUser: SystemUser = {
@@ -529,18 +529,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!target) return;
 
     const roleNameMap: Record<UserRole, string> = {
-      super_admin: 'ผู้ดูแลระบบสารสนเทศ (Super Admin)',
-      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร',
-      technician: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
-      department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
+      super_admin: 'ผู้ดูแลระบบ (Admin)',
+      supervisor: 'ผู้บริหาร (Executive / Director)',
+      technician: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
+      department_staff: 'ผู้ใช้งานทั่วไป (General User)'
     };
 
     const targetRole = role || target.role;
     const defaultMenus: Record<UserRole, ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[]> = {
       super_admin: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports', 'workforce'],
       supervisor: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
-      technician: ['dashboard', 'assets', 'inventory', 'work-orders', 'pm-calibration'],
-      department_staff: ['dashboard', 'assets', 'work-orders']
+      technician: ['assets', 'inventory', 'work-orders', 'pm-calibration', 'reports'],
+      department_staff: ['work-orders']
     };
 
     const updatedUser: SystemUser = {
@@ -586,10 +586,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!target) return;
 
     const roleNameMap: Record<UserRole, string> = {
-      super_admin: 'ผู้ดูแลระบบสารสนเทศ (Super Admin)',
-      supervisor: 'หัวหน้างานซ่อมบำรุงและวิศวกรรมอาคาร',
-      technician: 'ช่างเทคนิค/วิศวกรซ่อมบำรุง',
-      department_staff: 'เจ้าหน้าที่ประจำแผนก/พยาบาล'
+      super_admin: 'ผู้ดูแลระบบ (Admin)',
+      supervisor: 'ผู้บริหาร (Executive / Director)',
+      technician: 'ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply)',
+      department_staff: 'ผู้ใช้งานทั่วไป (General User)'
     };
 
     const updatedUser: SystemUser = {
@@ -707,15 +707,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const orderCount = workOrders.length + 1;
     const orderNumber = `WO-${year}-${String(orderCount).padStart(4, '0')}`;
     const reportDate = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`;
+    const docNo = data.documentNo || 'กจ ๐๐๓.๓๐๘.๑/';
 
     const newOrder: WorkOrder = {
       ...data,
       id: `wo-${Date.now().toString().slice(-6)}`,
       orderNumber,
+      documentNo: docNo,
       reportDate,
       status: 'pending',
       usedParts: [],
       totalCost: 0,
+      approvalStatus: data.approvalStatus || 'pending_approval',
+      repairTypeAssessment: data.repairTypeAssessment || 'internal_free',
+      headOfficerName: data.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา',
+      headOfficerTitle: data.headOfficerTitle || 'หัวหน้าเจ้าหน้าที่',
+      headOfficerOpinion: data.headOfficerOpinion || 'เห็นควรอนุมัติให้ดำเนินการตามเสนอ',
+      approverName: data.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์',
+      approverTitle: data.approverTitle || 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี',
+      approvalComments: data.approvalComments || '',
+      images: data.images || [],
     };
 
     setWorkOrders(prev => [newOrder, ...prev]);

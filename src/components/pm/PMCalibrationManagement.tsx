@@ -23,7 +23,9 @@ import { useApp } from '../../context/AppContext';
 import { PMRecord, PMStatus, Asset } from '../../types';
 
 export const PMCalibrationManagement: React.FC = () => {
-  const { pmRecords, completePMRecord, addPMRecord, assets, updateAsset, technicians } = useApp();
+  const { pmRecords, completePMRecord, addPMRecord, assets, updateAsset, technicians, currentUser } = useApp();
+
+  const canManagePM = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
 
   // Tab: 'medical_pm' (PM & Medical Calibration) vs 'ac_maintenance' (AC Cleaning & HVAC)
   const [activeSubTab, setActiveSubTab] = useState<'medical_pm' | 'ac_maintenance'>('medical_pm');
@@ -225,13 +227,15 @@ export const PMCalibrationManagement: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNewPlanOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>สร้างแผนงานบำรุงรักษาใหม่</span>
-        </button>
+        {canManagePM && (
+          <button
+            onClick={() => setIsNewPlanOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>สร้างแผนงานบำรุงรักษาใหม่</span>
+          </button>
+        )}
       </div>
 
       {/* Sub-tab Navigation */}

@@ -34,8 +34,12 @@ export const AssetManagement: React.FC<{
     assets, 
     setSelectedAssetForDetail, 
     setSelectedAssetForQR,
-    setSelectedAssetForLedger
+    setSelectedAssetForLedger,
+    currentUser
   } = useApp();
+
+  const canManageAssets = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
+  const isSupervisor = currentUser?.role === 'supervisor';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ทั้งหมด');
@@ -180,23 +184,27 @@ export const AssetManagement: React.FC<{
               <span>ส่งออก CSV</span>
             </button>
 
-            {/* New: Import Data Button */}
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition shadow-2xs cursor-pointer"
-              title="นำเข้าข้อมูลทะเบียนครุภัณฑ์จากไฟล์ Excel (.xlsx), PDF (.pdf) หรือ CSV"
-            >
-              <Upload className="w-3.5 h-3.5 text-emerald-700" />
-              <span>นำเข้าข้อมูล (Excel / PDF)</span>
-            </button>
+            {canManageAssets && (
+              <>
+                {/* New: Import Data Button */}
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition shadow-2xs cursor-pointer"
+                  title="นำเข้าข้อมูลทะเบียนครุภัณฑ์จากไฟล์ Excel (.xlsx), PDF (.pdf) หรือ CSV"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>นำเข้าข้อมูล (Excel / PDF)</span>
+                </button>
 
-            <button
-              onClick={() => setIsNewAssetModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>ลงทะเบียนครุภัณฑ์ใหม่</span>
-            </button>
+                <button
+                  onClick={() => setIsNewAssetModalOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>ลงทะเบียนครุภัณฑ์ใหม่</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -410,13 +418,15 @@ export const AssetManagement: React.FC<{
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          <button
-                            onClick={() => setEditingAsset(asset)}
-                            title="แก้ไขและเติมเต็มข้อมูลครุภัณฑ์"
-                            className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
+                          {canManageAssets && (
+                            <button
+                              onClick={() => setEditingAsset(asset)}
+                              title="แก้ไขและเติมเต็มข้อมูลครุภัณฑ์"
+                              className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
 
                           <button
                             onClick={() => setSelectedAssetForLedger(asset)}

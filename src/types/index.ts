@@ -99,17 +99,27 @@ export interface Asset {
   depreciationHistory?: DepreciationHistoryEntry[];
 }
 
-export type PriorityLevel = 'emergency' | 'urgent' | 'normal';
+export type PriorityLevel = 'urgent' | 'normal' | 'emergency';
+
+export type ApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
+
+export type RepairTypeAssessment = 
+  | 'internal_free'            // ซ่อมได้เองโดยช่างของโรงพยาบาล ไม่เสียค่าใช้จ่าย
+  | 'internal_with_materials'  // ซ่อมได้เองโดยช่างของโรงพยาบาล โดยเสียค่าวัสดุเพิ่มเติม
+  | 'division_repair'          // ส่งซ่อมกองช่างบำรุง
+  | 'external_company'         // ไม่สามารถซ่อมเองได้ จำเป็นต้องส่งซ่อมภายนอกหน่วยงาน (ส่งซ่อมบริษัท)
+  | 'other';                   // อื่นๆ
 
 export type WorkOrderStatus = 
-  | 'pending'       // รอดำเนินการรับเรื่อง
-  | 'assigned'      // รับงาน/มอบหมายแล้ว
-  | 'in_progress'   // กำลังปฏิบัติงานซ่อม
-  | 'waiting_parts' // รออะไหล่
-  | 'external'      // ส่งซ่อมภายนอก
-  | 'testing'       // รอทดสอบ/ตรวจรับ
-  | 'completed'     // ซ่อมเสร็จสมบูรณ์
-  | 'cancelled';    // ยกเลิก
+  | 'pending'           // รอดำเนินการรับเรื่อง
+  | 'pending_approval'  // รออนุมัติก่อนซ่อม
+  | 'assigned'          // รับงาน/มอบหมายแล้ว
+  | 'in_progress'       // กำลังปฏิบัติงานซ่อม
+  | 'waiting_parts'     // รออะไหล่
+  | 'external'          // ส่งซ่อมภายนอก
+  | 'testing'           // รอทดสอบ/ตรวจรับ
+  | 'completed'         // ซ่อมเสร็จสมบูรณ์
+  | 'cancelled';        // ยกเลิก
 
 export interface UsedPart {
   partId: string;
@@ -123,17 +133,30 @@ export interface UsedPart {
 export interface WorkOrder {
   id: string;
   orderNumber: string;    // เลขที่ใบแจ้งซ่อม เช่น WO-2026-0089
+  documentNo?: string;    // ที่เอกสาร เช่น กจ ๐๐๓.๓๐๘.๑/๐๐๐๑...
   assetId: string;
   assetCode: string;
   assetName: string;
+  brand?: string;         // ยี่ห้อ
+  model?: string;         // รุ่น
+  vendor?: string;        // บริษัทคู่ค้า/ผู้ผลิต
+  vendorPhone?: string;   // เบอร์โทรศัพท์บริษัท
   department: string;
-  priority: PriorityLevel;
+  priority: PriorityLevel;// ระดับความเร่งด่วน: 'urgent' (ด่วนมาก) | 'normal' (งานปกติ)
   status: WorkOrderStatus;
-  symptom: string;        // อาการเสีย/ปัญหาที่พบ
+  symptom: string;        // ลักษณะ/อาการชำรุด
   errorDetails?: string;  // รายละเอียดความผิดปกติเพิ่มเติม
-  reporterName: string;   // ชื่อผู้แจ้งซ่อม
+  reporterName: string;   // ผู้ส่งซ่อม (ผู้แจ้ง)
   reporterPhone: string;  // เบอร์ติดต่อผู้แจ้ง
-  reportDate: string;     // วันเวลาแจ้งซ่อม
+  reportDate: string;     // วันที่แจ้งซ่อม
+
+  // บันทึกหน่วยงานซ่อมบำรุง/ฝ่ายบริหารทั่วไป
+  repairTypeAssessment?: RepairTypeAssessment;
+  estimatedRepairDays?: number;      // ระยะเวลาการซ่อมประมาณ (วัน)
+  estimatedRepairCost?: number;      // ค่าใช้จ่ายประมาณการ (บาท)
+  maintenanceSectionSigner?: string; // ผู้ลงชื่อหน่วยงานซ่อมบำรุง
+  externalCompanyName?: string;      // ชื่อบริษัทภายนอก (กรณีไม่สามารถซ่อมได้เอง)
+  otherRepairAssessmentText?: string;// รายละเอียดเพิ่มเติม (กรณีเลือกอื่น ๆ)
   assignedTechId?: string;
   assignedTechName?: string;
   assignedDate?: string;
@@ -145,11 +168,26 @@ export interface WorkOrder {
   externalVendorName?: string;
   externalCost?: number;
   totalCost: number;      // รวมค่าอะไหล่ + ค่าจ้างภายนอก
+
+  // การอนุมัติก่อนซ่อม (Approval Workflow)
+  approvalStatus?: ApprovalStatus;   // สถานะการอนุมัติ: 'pending_approval' | 'approved' | 'rejected'
+  approvalDate?: string;             // วันที่อนุมัติ
+  approverName?: string;             // นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์
+  approverTitle?: string;            // นายแพทย์ชำนาญการ (ด้านเวชกรรม) ตำแหน่ง ผู้อำนวยการโรงพยาบาลสังขละบุรี
+  headOfficerName?: string;          // นางสาวชุติญา จรัสกุลธาดา
+  headOfficerTitle?: string;         // หัวหน้าเจ้าหน้าที่
+  headOfficerOpinion?: string;       // ความเห็นของหัวหน้าเจ้าหน้าที่ เช่น "เห็นควรอนุมัติตามเสนอ"
+  approvalComments?: string;         // คำสั่ง / ความเห็นของผู้มีอำนาจอนุมัติ เช่น "อนุมัติให้ดำเนินการซ่อมบำรุงตามเสนอ"
+
+  // การตรวจรับงานซ่อม
   inspectorName?: string; // ผู้ตรวจรับงาน (หัวหน้าแผนกผู้ใช้)
   inspectionDate?: string;
   inspectionPassed?: boolean;
   notes?: string;
+  
+  // แนบไฟล์ภาพ (ภาพอาการชำรุด / สภาพก่อนซ่อม / หลังซ่อม)
   photoUrl?: string;
+  images?: string[];      // Base64 URLs หรือ Photo URLs
 }
 
 export type PMStatus = 'scheduled' | 'passed' | 'failed' | 'overdue';
