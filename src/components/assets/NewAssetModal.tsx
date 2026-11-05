@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, PlusCircle, Wind, FileText, CheckSquare } from 'lucide-react';
+import { X, Save, PlusCircle, Wind, FileText, CheckSquare, Image as ImageIcon, Upload, Trash2, Camera, Link as LinkIcon } from 'lucide-react';
 import { Asset, AssetCategory, CriticalityLevel, AssetStatus, FundingSource, AcquisitionMethod } from '../../types';
 import { HOSPITAL_DEPARTMENTS, ASSET_CATEGORIES_CONFIG } from '../../data/mockData';
 import { useApp } from '../../context/AppContext';
@@ -21,6 +21,55 @@ export const NewAssetModal: React.FC<{
   const [specification, setSpecification] = useState('');
   const [criticality, setCriticality] = useState<CriticalityLevel>('high_risk');
   const [status, setStatus] = useState<AssetStatus>('ready');
+
+  // Photo & Image states
+  const [imageUrl, setImageUrl] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessingImage(true);
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDimension = 900;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          setImageUrl(compressed);
+          setImages(prev => [compressed, ...prev.filter(x => x !== compressed)]);
+        }
+        setIsProcessingImage(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // MOPH Asset Ledger specific fields
   const [fundingSource, setFundingSource] = useState<FundingSource>('budget');
@@ -99,6 +148,8 @@ export const NewAssetModal: React.FC<{
       pmFrequencyMonths: Number(pmFrequencyMonths),
       lastCalibrationDate: today,
       nextCalibrationDate: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10),
+      imageUrl: imageUrl || undefined,
+      images: images.length > 0 ? images : (imageUrl ? [imageUrl] : undefined),
       ...(category === 'hvac_aircon' ? {
         btu: Number(btu) || 24000,
         acType,
@@ -467,6 +518,112 @@ export const NewAssetModal: React.FC<{
                   onChange={(e) => setVendorPhone(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Asset Photos / แนบภาพถ่ายครุภัณฑ์ */}
+          <div className="space-y-3 bg-slate-50/90 p-4 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+              <h4 className="font-bold text-emerald-950 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-emerald-700" />
+                <span>5. ภาพถ่ายครุภัณฑ์ (Asset Photos)</span>
+              </h4>
+              <span className="text-[11px] text-slate-500">
+                รองรับไฟล์ภาพ JPG, PNG หรือถ่ายจากกล้องมือถือ
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              {/* Image Preview Box */}
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-3 bg-white flex flex-col items-center justify-center min-h-[160px] text-center relative overflow-hidden">
+                {imageUrl ? (
+                  <div className="relative w-full h-36 group">
+                    <img
+                      src={imageUrl}
+                      alt="Asset preview"
+                      className="w-full h-full object-contain rounded-lg bg-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageUrl('');
+                        setImages([]);
+                      }}
+                      className="absolute top-1 right-1 p-1.5 bg-rose-600/90 hover:bg-rose-700 text-white rounded-lg transition shadow-xs cursor-pointer"
+                      title="ลบรูปภาพ"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 py-4">
+                    <ImageIcon className="w-10 h-10 text-slate-300 mb-1.5" />
+                    <p className="text-xs font-semibold text-slate-600">ยังไม่มีภาพถ่ายครุภัณฑ์</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">เลือกอัปโหลดไฟล์ภาพด้านขวา</p>
+                  </div>
+                )}
+                {isProcessingImage && (
+                  <div className="absolute inset-0 bg-white/80 flex items-center justify-center gap-2 text-xs font-semibold text-emerald-800">
+                    <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    กำลังประมวลผลรูปภาพ...
+                  </div>
+                )}
+              </div>
+
+              {/* Upload Controls */}
+              <div className="md:col-span-2 space-y-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-semibold rounded-lg text-xs transition cursor-pointer shadow-2xs">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>แนบรูปภาพจากเครื่อง / ถ่ายภาพ</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(prev => !prev)}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium transition cursor-pointer"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
+                    <span>ระบุ URL ภาพ</span>
+                  </button>
+                </div>
+
+                {showUrlInput && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <input
+                      type="url"
+                      placeholder="วางลิงก์รูปภาพ เช่น https://example.com/asset.jpg"
+                      value={imageUrlInput}
+                      onChange={(e) => setImageUrlInput(e.target.value)}
+                      className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (imageUrlInput.trim()) {
+                          setImageUrl(imageUrlInput.trim());
+                          setImages(prev => [imageUrlInput.trim(), ...prev.filter(x => x !== imageUrlInput.trim())]);
+                          setImageUrlInput('');
+                          setShowUrlInput(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg text-xs font-semibold hover:bg-emerald-800 cursor-pointer"
+                    >
+                      ใช้รูปนี้
+                    </button>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500">
+                  รูปภาพนี้จะปรากฏในหน้ารายละเอียดครุภัณฑ์ ตารางทะเบียนครุภัณฑ์ และบัตรประจำเครื่อง QR Code
+                </p>
               </div>
             </div>
           </div>

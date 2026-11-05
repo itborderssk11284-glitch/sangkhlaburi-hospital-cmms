@@ -16,7 +16,9 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Wind,
-  Edit3
+  Edit3,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Asset, AssetCategory, CriticalityLevel, AssetStatus } from '../../types';
@@ -336,6 +338,7 @@ export const AssetManagement: React.FC<{
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
               <tr>
+                <th className="py-3 px-3 text-center w-14">ภาพ</th>
                 <th className="py-3 px-4">รหัส / S/N</th>
                 <th className="py-3 px-4">ชื่อครุภัณฑ์ / ยี่ห้อ รุ่น</th>
                 <th className="py-3 px-4">หมวดหมู่มาตรฐาน</th>
@@ -349,7 +352,7 @@ export const AssetManagement: React.FC<{
             <tbody className="divide-y divide-slate-100">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     ไม่พบรายการครุภัณฑ์ตามเงื่อนไขการค้นหา
                   </td>
                 </tr>
@@ -361,6 +364,29 @@ export const AssetManagement: React.FC<{
                       key={asset.id} 
                       className="hover:bg-slate-50/70 transition"
                     >
+                      <td className="py-2.5 px-3 text-center">
+                        {asset.imageUrl ? (
+                          <div 
+                            onClick={() => setSelectedAssetForDetail(asset)}
+                            className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-white mx-auto shadow-2xs cursor-pointer hover:ring-2 hover:ring-emerald-500 transition group"
+                            title="คลิกเพื่อดูภาพครุภัณฑ์"
+                          >
+                            <img
+                              src={asset.imageUrl}
+                              alt={asset.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition duration-150"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingAsset(asset)}
+                            className="w-10 h-10 rounded-lg border border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-700 mx-auto transition cursor-pointer"
+                            title="แทรกภาพถ่ายครุภัณฑ์"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
                       <td className="py-3 px-4">
                         <div className="font-mono font-bold text-emerald-950">{asset.code}</div>
                         <div className="text-[11px] font-mono text-slate-400">SN: {asset.serialNumber}</div>

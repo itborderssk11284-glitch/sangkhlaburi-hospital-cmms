@@ -12,7 +12,11 @@ import {
   AlertCircle,
   FileText,
   Wind,
-  Edit3
+  Edit3,
+  Camera,
+  Image as ImageIcon,
+  ZoomIn,
+  Upload
 } from 'lucide-react';
 import { Asset, WorkOrder, PMRecord } from '../../types';
 import { QRCodeView } from '../common/QRCodeView';
@@ -26,8 +30,54 @@ export const AssetDetailModal: React.FC<{
   onOpenQRBadge: (asset: Asset) => void;
   onOpenNewRepairForAsset: (asset: Asset) => void;
 }> = ({ asset, onClose, onOpenQRBadge, onOpenNewRepairForAsset }) => {
-  const { workOrders, pmRecords, setSelectedOrderForDetail, setSelectedOrderForPrint, setSelectedAssetForLedger } = useApp();
+  const { workOrders, pmRecords, updateAsset, setSelectedOrderForDetail, setSelectedOrderForPrint, setSelectedAssetForLedger } = useApp();
   const [isEditing, setIsEditing] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleQuickPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const maxDimension = 900;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          await updateAsset(asset.id, {
+            imageUrl: compressed,
+            images: [compressed, ...(asset.images || []).filter(x => x !== compressed)]
+          });
+        }
+        setIsUploadingPhoto(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const assetWorkOrders = workOrders.filter(w => w.assetId === asset.id || w.assetCode === asset.code);
   const assetPMRecords = pmRecords.filter(p => p.assetId === asset.id || p.assetCode === asset.code);
@@ -214,13 +264,72 @@ export const AssetDetailModal: React.FC<{
               </div>
             </div>
 
-            {/* QR Code and Quick Scan Preview */}
-            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
-              <QRCodeView value={`SKH-ASSET:${asset.code}`} size={130} />
-              <span className="font-mono font-bold text-xs text-slate-800 mt-2">{asset.code}</span>
-              <p className="text-[11px] text-slate-500 mt-1">
-                สแกนผ่านกล้องมือถือหรือเครื่องยิงบาร์โค้ดเพื่อเปิดประวัติการซ่อมบำรุง
-              </p>
+            {/* Right Column: Asset Photo Card & QR Code */}
+            <div className="space-y-4">
+              {/* Asset Photo Card */}
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-3.5 flex flex-col items-center">
+                <div className="w-full flex items-center justify-between mb-2">
+                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>ภาพถ่ายครุภัณฑ์</span>
+                  </span>
+                  <label className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer flex items-center gap-1">
+                    <Camera className="w-3 h-3" />
+                    <span>{asset.imageUrl ? 'เปลี่ยนภาพ' : 'แทรกภาพ'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQuickPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {asset.imageUrl ? (
+                  <div 
+                    className="relative w-full h-44 rounded-lg overflow-hidden border border-slate-200 bg-white group cursor-pointer"
+                    onClick={() => setZoomImage(asset.imageUrl || null)}
+                    title="คลิกเพื่อดูภาพขยาย"
+                  >
+                    <img
+                      src={asset.imageUrl}
+                      alt={asset.name}
+                      className="w-full h-full object-contain p-1 group-hover:scale-105 transition duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold gap-1">
+                      <ZoomIn className="w-4 h-4" />
+                      <span>คลิกเพื่อดูภาพขยาย</span>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="w-full h-36 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:border-emerald-500 hover:bg-emerald-50/40 hover:text-emerald-700 transition cursor-pointer p-3 text-center">
+                    <Camera className="w-8 h-8 mb-1.5 opacity-60 text-slate-400" />
+                    <span className="text-xs font-semibold">ยังไม่มีรูปภาพครุภัณฑ์</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">คลิกเพื่อแทรกภาพถ่าย</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQuickPhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+                {isUploadingPhoto && (
+                  <p className="text-[11px] text-emerald-700 font-semibold mt-1.5 animate-pulse flex items-center gap-1">
+                    <Upload className="w-3 h-3" />
+                    <span>กำลังบันทึกภาพถ่ายขึ้น Firebase...</span>
+                  </p>
+                )}
+              </div>
+
+              {/* QR Code and Quick Scan Preview */}
+              <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                <QRCodeView value={`SKH-ASSET:${asset.code}`} size={110} />
+                <span className="font-mono font-bold text-xs text-slate-800 mt-1.5">{asset.code}</span>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  สแกนผ่านกล้องมือถือเพื่อเปิดประวัติการซ่อมบำรุง
+                </p>
+              </div>
             </div>
           </div>
 
@@ -331,6 +440,34 @@ export const AssetDetailModal: React.FC<{
           <EditAssetModal asset={asset} onClose={() => setIsEditing(false)} />
         )}
       </div>
+
+      {/* Enlarged Photo Lightbox Modal */}
+      {zoomImage && (
+        <div 
+          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in" 
+          onClick={() => setZoomImage(null)}
+        >
+          <div 
+            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden p-2 shadow-2xl" 
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setZoomImage(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-slate-900/70 hover:bg-slate-900 text-white rounded-full transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img 
+              src={zoomImage} 
+              alt={asset.name} 
+              className="max-h-[80vh] w-auto mx-auto object-contain rounded-xl" 
+            />
+            <div className="p-3 text-center text-xs font-semibold text-slate-700 bg-slate-50 border-t border-slate-100 mt-2 rounded-lg">
+              <span className="font-mono text-emerald-800 font-bold">{asset.code}</span> · {asset.name} ({asset.brand} {asset.model})
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -86,6 +86,7 @@ export interface Asset {
   nextCalibrationDate?: string;
   lastRepairDate?: string;
   imageUrl?: string;
+  images?: string[];
   expectedLifeYears?: number;
 
   // กรณีแอร์

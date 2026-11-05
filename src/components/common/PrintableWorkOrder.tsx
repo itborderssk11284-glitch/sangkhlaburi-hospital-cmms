@@ -1,7 +1,6 @@
 import React from 'react';
 import { Printer, X, Image as ImageIcon } from 'lucide-react';
 import { WorkOrder, Asset } from '../../types';
-import { GarudaEmblem } from './GarudaEmblem';
 import { useApp } from '../../context/AppContext';
 
 export const PrintableWorkOrder: React.FC<{
@@ -33,16 +32,36 @@ export const PrintableWorkOrder: React.FC<{
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       {/* Print Style Injections for A4 & TH SarabunPSK 16pt */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
-        
-        .sarabun-memo {
-          font-family: 'TH SarabunPSK', 'TH Sarabun New', 'Sarabun', sans-serif !important;
+        @font-face {
+          font-family: 'TH SarabunPSK';
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: local('TH SarabunPSK'), local('THSarabunPSK'), local('TH Sarabun New'), local('THSarabunNew'),
+               url('https://cdn.jsdelivr.net/gh/munichPMN/ThaiGovStdFonts@master/font/woff2/TH_Sarabun-Regular.woff2') format('woff2');
+        }
+        @font-face {
+          font-family: 'TH SarabunPSK';
+          font-style: normal;
+          font-weight: 700;
+          font-display: swap;
+          src: local('TH SarabunPSK Bold'), local('THSarabunPSK-Bold'), local('TH Sarabun New Bold'), local('THSarabunNew-Bold'),
+               url('https://cdn.jsdelivr.net/gh/munichPMN/ThaiGovStdFonts@master/font/woff2/TH_Sarabun-Bold.woff2') format('woff2');
+        }
+
+        .sarabun-memo, .sarabun-memo * {
+          font-family: 'TH SarabunPSK', 'TH Sarabun', 'TH SarabunNew', 'Sarabun', sans-serif !important;
           font-size: 16pt !important;
           line-height: 1.25 !important;
           color: #000000 !important;
         }
-        .sarabun-memo strong, .sarabun-memo b {
+        .sarabun-memo strong, .sarabun-memo b, .sarabun-memo .font-bold {
           font-weight: 700 !important;
+        }
+        .sarabun-memo .memo-title {
+          font-size: 24pt !important;
+          font-weight: 700 !important;
+          line-height: 1.15 !important;
         }
         
         @media print {
@@ -105,15 +124,9 @@ export const PrintableWorkOrder: React.FC<{
           className="p-8 sm:p-12 text-slate-900 bg-white leading-tight font-sans sarabun-memo" 
           id="printable-order-sheet"
         >
-          {/* Header: Royal Thai Garuda Emblem Centered at Top (NO LOGO ON LEFT) */}
-          <div className="text-center pb-1 mb-1">
-            <div className="flex justify-center">
-              <GarudaEmblem size={56} />
-            </div>
-            <h1 
-              className="font-bold text-slate-950 tracking-normal mt-0.5 leading-none"
-              style={{ fontSize: '24pt' }}
-            >
+          {/* Header: Centered Memorandum Title Without Any Image Above */}
+          <div className="text-center pb-2 mb-2">
+            <h1 className="memo-title font-bold text-slate-950 tracking-normal text-center">
               บันทึกข้อความ
             </h1>
           </div>
