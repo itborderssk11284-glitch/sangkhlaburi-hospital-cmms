@@ -16,7 +16,8 @@ import {
   FileText, 
   CheckSquare, 
   Eye,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 import { WorkOrder, PriorityLevel, WorkOrderStatus, ApprovalStatus, RepairTypeAssessment } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -26,11 +27,15 @@ export const EditWorkOrderModal: React.FC<{
   order: WorkOrder;
   onClose: () => void;
 }> = ({ order, onClose }) => {
-  const { updateWorkOrder, technicians } = useApp();
+  const { updateWorkOrder, deleteWorkOrder, technicians, currentUser } = useApp();
+
+  const canApprove = currentUser?.role === 'super_admin' || currentUser?.role === 'supervisor';
+  const canDelete = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
 
   // Basic Information
   const [orderNumber] = useState(order.orderNumber);
   const [documentNo, setDocumentNo] = useState(order.documentNo || 'กจ ๐๐๓.๓๐๘.๑/');
+  const [governmentSection, setGovernmentSection] = useState(order.governmentSection || 'โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป');
   const [assetCode, setAssetCode] = useState(order.assetCode);
   const [assetName, setAssetName] = useState(order.assetName);
   const [model, setModel] = useState(order.model || '');
@@ -73,10 +78,14 @@ export const EditWorkOrderModal: React.FC<{
   const [approvalDate, setApprovalDate] = useState(order.approvalDate || new Date().toISOString().slice(0, 10));
   const [approverName, setApproverName] = useState(order.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์');
   const [approverTitle, setApproverTitle] = useState(
-    order.approverTitle || 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) ตำแหน่ง ผู้อำนวยการโรงพยาบาลสังขละบุรี'
+    order.approverTitle || 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี'
   );
   const [headOfficerName, setHeadOfficerName] = useState(order.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา');
-  const [headOfficerTitle, setHeadOfficerTitle] = useState(order.headOfficerTitle || 'หัวหน้าเจ้าหน้าที่');
+  const [headOfficerTitle, setHeadOfficerTitle] = useState(
+    order.headOfficerTitle && order.headOfficerTitle !== 'หัวหน้าเจ้าหน้าที่' 
+      ? order.headOfficerTitle 
+      : 'นักจัดการงานทั่วไป'
+  );
   const [headOfficerOpinion, setHeadOfficerOpinion] = useState(
     order.headOfficerOpinion || 'เรียน ผู้อำนวยการโรงพยาบาลสังขละบุรี เพื่อโปรดพิจารณาอนุมัติให้ดำเนินการซ่อมบำรุงตามเสนอ'
   );
@@ -94,6 +103,8 @@ export const EditWorkOrderModal: React.FC<{
   // Action status
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +129,18 @@ export const EditWorkOrderModal: React.FC<{
 
   const handleRemoveImage = (index: number) => {
     setImages(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleDeleteOrder = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteWorkOrder(order.id);
+      setIsDeleting(false);
+      onClose();
+    } catch (err: any) {
+      setIsDeleting(false);
+      setErrorMessage(`เกิดข้อผิดพลาดในการลบใบแจ้งซ่อม: ${err?.message || 'โปรดตรวจสอบการเชื่อมต่อ'}`);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,6 +172,7 @@ export const EditWorkOrderModal: React.FC<{
 
     const updates: Partial<WorkOrder> = {
       documentNo: documentNo.trim(),
+      governmentSection: governmentSection.trim(),
       assetCode: assetCode.trim(),
       assetName: assetName.trim(),
       customItemName: order.orderType === 'general' ? assetName.trim() : order.customItemName,
@@ -272,10 +296,23 @@ export const EditWorkOrderModal: React.FC<{
                   <FileText className="w-4 h-4 text-emerald-700" />
                   <span>๑. ข้อมูลหนังสือบันทึกข้อความและครุภัณฑ์ที่ขออนุมัติซ่อม</span>
                 </h4>
-                <span className="text-[11px] text-slate-500">ส่วนราชการ: โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป</span>
+                <span className="text-[11px] text-slate-500">แบบฟอร์มบันทึกข้อความมาตรฐานราชการ</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">
+                    ส่วนราชการ (หน่วยงานผู้ออกบันทึกข้อความ) *
+                  </label>
+                  <input
+                    type="text"
+                    value={governmentSection}
+                    onChange={(e) => setGovernmentSection(e.target.value)}
+                    placeholder="เช่น โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-900 focus:bg-white focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
                     ที่เอกสารหนังสือ *
@@ -288,7 +325,9 @@ export const EditWorkOrderModal: React.FC<{
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-slate-900 focus:bg-white focus:ring-1 focus:ring-emerald-600 focus:outline-none"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
                     รหัสครุภัณฑ์ *
@@ -768,45 +807,54 @@ export const EditWorkOrderModal: React.FC<{
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setApprovalStatus('approved')}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                        approvalStatus === 'approved'
-                          ? 'bg-emerald-700 text-white ring-2 ring-emerald-500 shadow-xs'
-                          : 'bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>✓ อนุมัติ</span>
-                    </button>
+                  {canApprove ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setApprovalStatus('approved')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                          approvalStatus === 'approved'
+                            ? 'bg-emerald-700 text-white ring-2 ring-emerald-500 shadow-xs'
+                            : 'bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>✓ อนุมัติ</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setApprovalStatus('rejected')}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                        approvalStatus === 'rejected'
-                          ? 'bg-rose-700 text-white ring-2 ring-rose-500 shadow-xs'
-                          : 'bg-white text-rose-800 border border-rose-300 hover:bg-rose-50'
-                      }`}
-                    >
-                      <X className="w-4 h-4" />
-                      <span>✕ ไม่อนุมัติ</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setApprovalStatus('rejected')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
+                          approvalStatus === 'rejected'
+                            ? 'bg-rose-700 text-white ring-2 ring-rose-500 shadow-xs'
+                            : 'bg-white text-rose-800 border border-rose-300 hover:bg-rose-50'
+                        }`}
+                      >
+                        <X className="w-4 h-4" />
+                        <span>✕ ไม่อนุมัติ</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setApprovalStatus('pending_approval')}
-                      className={`px-3 py-1.5 rounded-lg font-medium text-xs transition cursor-pointer ${
-                        approvalStatus === 'pending_approval'
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      ⏳ รออนุมัติ
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setApprovalStatus('pending_approval')}
+                        className={`px-3 py-1.5 rounded-lg font-medium text-xs transition cursor-pointer ${
+                          approvalStatus === 'pending_approval'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        ⏳ รออนุมัติ
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-xs">
+                      <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span className="font-semibold text-slate-700">
+                        🔒 สงวนสิทธิ์การอนุมัติเฉพาะผู้อำนวยการและ Admin เท่านั้น
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -881,15 +929,28 @@ export const EditWorkOrderModal: React.FC<{
 
             {/* Footer Buttons */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="text-[11px] text-slate-500">
-                ข้อมูลจะถูกอัปเดตลงระบบและซิงค์เชื่อมต่อไปยัง Firebase Firestore อัตโนมัติ
-              </span>
+              <div className="flex items-center gap-3">
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isSaving || isDeleting}
+                    className="flex items-center gap-1.5 px-3 py-2 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>ลบใบแจ้งซ่อมนี้</span>
+                  </button>
+                )}
+                <span className="text-[11px] text-slate-500">
+                  ข้อมูลจะถูกอัปเดตลงระบบและซิงค์เชื่อมต่อไปยัง Firebase Firestore อัตโนมัติ
+                </span>
+              </div>
 
               <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={onClose}
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                   className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl font-medium transition cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
@@ -897,7 +958,7 @@ export const EditWorkOrderModal: React.FC<{
 
                 <button
                   type="submit"
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                   className="flex items-center gap-2 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-600 text-white rounded-xl font-bold transition shadow-xs cursor-pointer"
                 >
                   {isSaving ? (
@@ -916,6 +977,54 @@ export const EditWorkOrderModal: React.FC<{
             </div>
 
           </form>
+        )}
+
+        {/* Delete Confirmation In-App Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rose-200 animate-in fade-in">
+              <div className="flex items-center gap-3 text-rose-600 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">ยืนยันการลบใบแจ้งซ่อม</h3>
+                  <p className="text-xs text-slate-500 font-mono">{orderNumber}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mb-4">
+                คุณแน่ใจหรือไม่ว่าต้องการลบใบแจ้งซ่อม <strong className="text-slate-900">{orderNumber}</strong> ({assetName}) ออกจากระบบและ Firebase Firestore อย่างถาวร?
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteOrder}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>กำลังลบ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>ยืนยันลบออกจากระบบ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Enlarged Image Preview Modal */}

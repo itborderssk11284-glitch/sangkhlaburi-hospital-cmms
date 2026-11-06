@@ -135,6 +135,7 @@ export interface WorkOrder {
   id: string;
   orderNumber: string;    // เลขที่ใบแจ้งซ่อม เช่น WO-2026-0089
   documentNo?: string;    // ที่เอกสาร เช่น กจ ๐๐๓.๓๐๘.๑/๐๐๐๑...
+  governmentSection?: string; // ส่วนราชการ เช่น โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป
   orderType?: 'asset' | 'general'; // 'asset' = ซ่อมครุภัณฑ์, 'general' = ซ่อมอื่นๆ
   customItemName?: string;// รายการที่ซ่อม (พิมพ์ลงไปได้เอง สำหรับซ่อมอื่นๆ)
   assetId: string;
@@ -176,9 +177,9 @@ export interface WorkOrder {
   approvalStatus?: ApprovalStatus;   // สถานะการอนุมัติ: 'pending_approval' | 'approved' | 'rejected'
   approvalDate?: string;             // วันที่อนุมัติ
   approverName?: string;             // นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์
-  approverTitle?: string;            // นายแพทย์ชำนาญการ (ด้านเวชกรรม) ตำแหน่ง ผู้อำนวยการโรงพยาบาลสังขละบุรี
+  approverTitle?: string;            // นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี
   headOfficerName?: string;          // นางสาวชุติญา จรัสกุลธาดา
-  headOfficerTitle?: string;         // หัวหน้าเจ้าหน้าที่
+  headOfficerTitle?: string;         // นักจัดการงานทั่วไป
   headOfficerOpinion?: string;       // ความเห็นของหัวหน้าเจ้าหน้าที่ เช่น "เห็นควรอนุมัติตามเสนอ"
   approvalComments?: string;         // คำสั่ง / ความเห็นของผู้มีอำนาจอนุมัติ เช่น "อนุมัติให้ดำเนินการซ่อมบำรุงตามเสนอ"
 

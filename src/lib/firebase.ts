@@ -119,6 +119,17 @@ export async function saveWorkOrderToFirestore(order: WorkOrder): Promise<void> 
   }
 }
 
+export async function deleteWorkOrderFromFirestore(id: string): Promise<void> {
+  const docRef = doc(db, WORK_ORDERS_COLLECTION, id);
+  try {
+    await deleteDoc(docRef);
+    console.log(`[Firebase] Work order deleted from Firestore (${id}).`);
+  } catch (error) {
+    console.error(`[Firebase] Failed to delete work order ${id}:`, error);
+    handleFirestoreError(error, OperationType.DELETE, `${WORK_ORDERS_COLLECTION}/${id}`);
+  }
+}
+
 export async function fetchWorkOrdersFromFirestore(): Promise<WorkOrder[]> {
   try {
     const colRef = collection(db, WORK_ORDERS_COLLECTION);

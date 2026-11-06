@@ -148,31 +148,72 @@ export const AnalyticsDashboard: React.FC = () => {
     return Math.max(...departmentWorkloadData.map(d => d.totalTickets), 5);
   }, [departmentWorkloadData]);
 
-  // 12 Months Monthly Trend (Jan - Dec 2569)
+  // 12 Months Monthly Trend (Jan - Dec 2569: Calculated dynamically from real work orders, starting at 0 with all sample data removed)
   const monthlyTrendData = useMemo(() => {
-    return [
-      { month: 'ม.ค.', tickets: 7, spend: 18500, label: 'มกราคม 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'ก.พ.', tickets: 9, spend: 24000, label: 'กุมภาพันธ์ 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'มี.ค.', tickets: 12, spend: 45000, label: 'มีนาคม 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'เม.ย.', tickets: 8, spend: 16000, label: 'เมษายน 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'พ.ค.', tickets: 11, spend: 32000, label: 'พฤษภาคม 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'มิ.ย.', tickets: 14, spend: 58000, label: 'มิถุนายน 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'ก.ค.', tickets: 10, spend: 21000, label: 'กรกฎาคม 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'ส.ค.', tickets: 15, spend: 64000, label: 'สิงหาคม 2569', isCurrent: false, isPeak: false, isForecast: false },
-      { month: 'ก.ย.', tickets: 18, spend: 72000, label: 'กันยายน 2569', isCurrent: false, isPeak: true, isForecast: false },
-      { month: 'ต.ค.', tickets: workOrders.length || 16, spend: totalSpend || 49000, label: 'ตุลาคม 2569 (เดือนปัจจุบัน)', isCurrent: true, isPeak: false, isForecast: false },
-      { month: 'พ.ย.', tickets: 6, spend: 15000, label: 'พฤศจิกายน 2569 (คาดการณ์)', isCurrent: false, isPeak: false, isForecast: true },
-      { month: 'ธ.ค.', tickets: 5, spend: 12000, label: 'ธันวาคม 2569 (คาดการณ์)', isCurrent: false, isPeak: false, isForecast: true },
+    const now = new Date();
+    const currentMonth0Indexed = now.getMonth();
+    const monthDefs = [
+      { month: 'ม.ค.', label: 'มกราคม 2569', monthNum: 1 },
+      { month: 'ก.พ.', label: 'กุมภาพันธ์ 2569', monthNum: 2 },
+      { month: 'มี.ค.', label: 'มีนาคม 2569', monthNum: 3 },
+      { month: 'เม.ย.', label: 'เมษายน 2569', monthNum: 4 },
+      { month: 'พ.ค.', label: 'พฤษภาคม 2569', monthNum: 5 },
+      { month: 'มิ.ย.', label: 'มิถุนายน 2569', monthNum: 6 },
+      { month: 'ก.ค.', label: 'กรกฎาคม 2569', monthNum: 7 },
+      { month: 'ส.ค.', label: 'สิงหาคม 2569', monthNum: 8 },
+      { month: 'ก.ย.', label: 'กันยายน 2569', monthNum: 9 },
+      { month: 'ต.ค.', label: 'ตุลาคม 2569', monthNum: 10 },
+      { month: 'พ.ย.', label: 'พฤศจิกายน 2569', monthNum: 11 },
+      { month: 'ธ.ค.', label: 'ธันวาคม 2569', monthNum: 12 },
     ];
-  }, [workOrders.length, totalSpend]);
+
+    const stats = monthDefs.map((def, idx) => {
+      const monthStr = String(def.monthNum).padStart(2, '0');
+      
+      // Count actual work orders matching this month
+      const matchingOrders = filteredOrders.filter(o => {
+        if (!o.reportDate) return false;
+        const parts = o.reportDate.split(' ')[0].split('-');
+        if (parts.length >= 2) {
+          return parts[1] === monthStr;
+        }
+        return false;
+      });
+
+      const tickets = matchingOrders.length;
+      const spend = matchingOrders.reduce((sum, o) => sum + (o.totalCost || 0), 0);
+
+      return {
+        month: def.month,
+        tickets,
+        spend,
+        label: `${def.label}${idx === currentMonth0Indexed ? ' (เดือนปัจจุบัน)' : ''}`,
+        isCurrent: idx === currentMonth0Indexed,
+        isPeak: false,
+        isForecast: false,
+      };
+    });
+
+    const maxT = Math.max(...stats.map(s => s.tickets), 0);
+    if (maxT > 0) {
+      const peakItem = stats.find(s => s.tickets === maxT);
+      if (peakItem) peakItem.isPeak = true;
+    }
+
+    return stats;
+  }, [filteredOrders]);
+
+  const peakMonth = useMemo(() => {
+    return monthlyTrendData.find(m => m.isPeak) || null;
+  }, [monthlyTrendData]);
 
   const annualTickets = useMemo(() => monthlyTrendData.reduce((acc, m) => acc + m.tickets, 0), [monthlyTrendData]);
   const annualSpend = useMemo(() => monthlyTrendData.reduce((acc, m) => acc + m.spend, 0), [monthlyTrendData]);
   const avgMonthlyTickets = (annualTickets / 12).toFixed(1);
-  const avgCostPerTicket = Math.round(annualSpend / (annualTickets || 1));
+  const avgCostPerTicket = annualTickets > 0 ? Math.round(annualSpend / annualTickets) : 0;
 
-  const maxMonthlyTickets = Math.max(...monthlyTrendData.map(m => m.tickets), 20);
-  const maxMonthlySpend = Math.max(...monthlyTrendData.map(m => m.spend), 80000);
+  const maxMonthlyTickets = Math.max(...monthlyTrendData.map(m => m.tickets), 5);
+  const maxMonthlySpend = Math.max(...monthlyTrendData.map(m => m.spend), 10000);
 
   // AC Cleaning & Preventive Tracking
   const acAssets = assets.filter(a => a.category === 'hvac_aircon');
@@ -630,10 +671,21 @@ export const AnalyticsDashboard: React.FC = () => {
               </div>
               <div className="flex flex-col">
                 <span className="text-[11px] font-medium text-slate-500">เดือนงานสูงสุด (Peak)</span>
-                <span className="text-base sm:text-lg font-black text-rose-700 font-mono tabular-nums tracking-tight">
-                  ก.ย. <span className="text-xs font-semibold text-rose-600">(18 งาน)</span>
-                </span>
-                <span className="text-[10px] text-rose-600 font-bold">งบ 72,000 ฿</span>
+                {peakMonth ? (
+                  <>
+                    <span className="text-base sm:text-lg font-black text-rose-700 font-mono tabular-nums tracking-tight">
+                      {peakMonth.month} <span className="text-xs font-semibold text-rose-600">({peakMonth.tickets} งาน)</span>
+                    </span>
+                    <span className="text-[10px] text-rose-600 font-bold">งบ {peakMonth.spend.toLocaleString()} ฿</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-base sm:text-lg font-black text-slate-400 font-mono tabular-nums tracking-tight">
+                      - <span className="text-xs font-normal text-slate-400">(0 งาน)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">เริ่มต้นบันทึกข้อมูลจริง</span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -641,30 +693,29 @@ export const AnalyticsDashboard: React.FC = () => {
             <div className="relative pt-6 pb-2">
               {/* Dual-Axis Dotted Gridlines & Background Scale */}
               <div className="absolute inset-x-0 top-6 bottom-8 pointer-events-none flex flex-col justify-between">
-                {[
-                  { ticket: '20', spend: '80k' },
-                  { ticket: '15', spend: '60k' },
-                  { ticket: '10', spend: '40k' },
-                  { ticket: '5', spend: '20k' },
-                  { ticket: '0', spend: '0' }
-                ].map((row, i) => (
-                  <div key={i} className="flex items-center justify-between w-full">
-                    <span className="text-[10px] font-mono font-bold text-teal-600/70 -ml-1">
-                      {row.ticket}
-                    </span>
-                    <div className="flex-1 mx-2 border-b border-dashed border-slate-200/80"></div>
-                    <span className="text-[10px] font-mono font-bold text-amber-600/70 -mr-1">
-                      {row.spend}
-                    </span>
-                  </div>
-                ))}
+                {[1, 0.75, 0.5, 0.25, 0].map((ratio, i) => {
+                  const tVal = Math.round(maxMonthlyTickets * ratio);
+                  const sVal = Math.round(maxMonthlySpend * ratio);
+                  const sStr = sVal >= 1000 ? `${(sVal / 1000).toFixed(0)}k` : `${sVal}`;
+                  return (
+                    <div key={i} className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-mono font-bold text-teal-600/70 -ml-1">
+                        {tVal}
+                      </span>
+                      <div className="flex-1 mx-2 border-b border-dashed border-slate-200/80"></div>
+                      <span className="text-[10px] font-mono font-bold text-amber-600/70 -mr-1">
+                        {sStr}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Bar Columns Container */}
               <div className="h-52 flex items-end justify-between gap-1 sm:gap-2 px-6 relative z-10">
                 {monthlyTrendData.map((m, idx) => {
-                  const barHeightPct = Math.max(8, Math.round((m.tickets / maxMonthlyTickets) * 100));
-                  const spendHeightPct = Math.max(8, Math.round((m.spend / maxMonthlySpend) * 100));
+                  const barHeightPct = m.tickets > 0 ? Math.max(6, Math.round((m.tickets / maxMonthlyTickets) * 100)) : 0;
+                  const spendHeightPct = m.spend > 0 ? Math.max(6, Math.round((m.spend / maxMonthlySpend) * 100)) : 0;
                   const isHovered = hoveredMonthIdx === idx;
 
                   return (

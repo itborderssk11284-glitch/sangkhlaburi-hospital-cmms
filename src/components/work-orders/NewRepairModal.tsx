@@ -114,7 +114,7 @@ export const NewRepairModal: React.FC<{
       approvalStatus: 'pending_approval',
       repairTypeAssessment: 'internal_free',
       headOfficerName: 'นางสาวชุติญา จรัสกุลธาดา',
-      headOfficerTitle: 'หัวหน้าเจ้าหน้าที่',
+      headOfficerTitle: 'นักจัดการงานทั่วไป',
       headOfficerOpinion: 'เรียน ผู้อำนวยการโรงพยาบาลสังขละบุรี เพื่อโปรดพิจารณาอนุมัติให้ดำเนินการซ่อมบำรุงตามเสนอ',
       approverName: 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์',
       approverTitle: 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี',

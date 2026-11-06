@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  FileText
+  FileText,
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { WorkOrder, WorkOrderStatus, ApprovalStatus, RepairTypeAssessment } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -32,11 +34,15 @@ export const WorkOrderDetailModal: React.FC<{
     spareParts, 
     updateWorkOrderStatus, 
     updateWorkOrder, 
+    deleteWorkOrder,
     issuePartToOrder,
     currentUser 
   } = useApp();
 
   const canEdit = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
+  const canDelete = currentUser?.role === 'super_admin' || currentUser?.role === 'technician';
+  // การอนุมัติซ่อม: สงวนสิทธิ์เฉพาะผู้อำนวยการ (supervisor) และ Admin (super_admin) เท่านั้น
+  const canApprove = currentUser?.role === 'super_admin' || currentUser?.role === 'supervisor';
   const isSupervisor = currentUser?.role === 'supervisor';
   const isDepartmentStaff = currentUser?.role === 'department_staff';
 
@@ -98,6 +104,10 @@ export const WorkOrderDetailModal: React.FC<{
   };
 
   const handleSetApproval = (newApproval: ApprovalStatus) => {
+    if (!canApprove) {
+      setApprovalWarning('ท่านไม่มีสิทธิ์อนุมัติการซ่อมบำรุง (สิทธิ์การอนุมัติสงวนเฉพาะผู้อำนวยการโรงพยาบาลและ Admin เท่านั้น)');
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     setApprovalStatus(newApproval);
     setApprovalWarning(null);
@@ -108,10 +118,19 @@ export const WorkOrderDetailModal: React.FC<{
       approverName: order.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์',
       approverTitle: order.approverTitle || 'นายแพทย์ชำนาญการ (ด้านเวชกรรม) รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี',
       headOfficerName: order.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา',
-      headOfficerTitle: order.headOfficerTitle || 'หัวหน้าเจ้าหน้าที่',
+      headOfficerTitle: (order.headOfficerTitle && order.headOfficerTitle !== 'หัวหน้าเจ้าหน้าที่') ? order.headOfficerTitle : 'นักจัดการงานทั่วไป',
       headOfficerOpinion,
       approvalComments: newApproval === 'rejected' ? (approvalComments || 'ไม่อนุมัติการซ่อมบำรุง') : approvalComments
     });
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!canDelete) return;
+    const confirmDelete = window.confirm(`ยืนยันการลบใบแจ้งซ่อม ${order.orderNumber} (${order.customItemName || order.assetName}) หรือไม่?\n\nข้อมูลจะถูกลบออกจากระบบและ Cloud Firebase ทันที`);
+    if (confirmDelete) {
+      await deleteWorkOrder(order.id);
+      onClose();
+    }
   };
 
   const handleSaveDetails = (e: React.FormEvent) => {
@@ -222,6 +241,17 @@ export const WorkOrderDetailModal: React.FC<{
                   <span>แก้ไขใบแจ้งซ่อม</span>
                 </button>
               )}
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={handleDeleteOrder}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs"
+                  title="ลบใบแจ้งซ่อมนี้ออกจากระบบและ Firebase"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>ลบ</span>
+                </button>
+              )}
               <button
                 onClick={() => onPrint(order)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs"
@@ -266,45 +296,54 @@ export const WorkOrderDetailModal: React.FC<{
                   </div>
                 </div>
 
-                {/* Explicit Action Buttons: อนุมัติ และ ไม่อนุมัติ */}
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => handleSetApproval('approved')}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs transition cursor-pointer shadow-xs ${
-                      approvalStatus === 'approved'
-                        ? 'bg-emerald-700 text-white ring-2 ring-emerald-500'
-                        : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
-                    }`}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>✓ อนุมัติ</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSetApproval('rejected')}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs transition cursor-pointer shadow-xs ${
-                      approvalStatus === 'rejected'
-                        ? 'bg-rose-700 text-white ring-2 ring-rose-500'
-                        : 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100'
-                    }`}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span>✕ ไม่อนุมัติ</span>
-                  </button>
-
-                  {approvalStatus !== 'pending_approval' && (
+                {/* Explicit Action Buttons: อนุมัติ และ ไม่อนุมัติ (เฉพาะผู้อำนวยการและ Admin เท่านั้น) */}
+                {canApprove ? (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
                     <button
                       type="button"
-                      onClick={() => handleSetApproval('pending_approval')}
-                      className="p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-200 transition text-[11px]"
-                      title="รีเซ็ตสถานะเป็นรออนุมัติ"
+                      onClick={() => handleSetApproval('approved')}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs transition cursor-pointer shadow-xs ${
+                        approvalStatus === 'approved'
+                          ? 'bg-emerald-700 text-white ring-2 ring-emerald-500'
+                          : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                      }`}
                     >
-                      <Clock className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>✓ อนุมัติ</span>
                     </button>
-                  )}
-                </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSetApproval('rejected')}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-bold text-xs transition cursor-pointer shadow-xs ${
+                        approvalStatus === 'rejected'
+                          ? 'bg-rose-700 text-white ring-2 ring-rose-500'
+                          : 'bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100'
+                      }`}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>✕ ไม่อนุมัติ</span>
+                    </button>
+
+                    {approvalStatus !== 'pending_approval' && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetApproval('pending_approval')}
+                        className="p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-200 transition text-[11px]"
+                        title="รีเซ็ตสถานะเป็นรออนุมัติ"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium border border-slate-200">
+                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>สงวนสิทธิ์อนุมัติ: ผู้อำนวยการ / Admin</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Two Column Text Inputs: ความเห็นหัวหน้าเจ้าหน้าที่ และ คำสั่งอนุมัติ */}

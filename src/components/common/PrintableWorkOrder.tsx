@@ -24,11 +24,34 @@ export const PrintableWorkOrder: React.FC<{
   // Strictly "กจ 003.308.1/" without appended numbers as requested
   const docNo = 'กจ 003.308.1/';
 
-  // ผู้ส่งซ่อม ให้ขึ้นชื่อตามที่ Login
-  const reporterDisplayName = currentUser?.fullName || order.reporterName || '........................................................';
+  // Format date display: วัน/เดือน/ปี (นำคำว่า พ.ศ. ออก)
+  const formatThaiDate = (dateStr?: string) => {
+    if (!dateStr || dateStr.includes('...')) return '....../....../..........';
+    const cleanStr = dateStr.split(' ')[0].split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        const thaiYear = y < 2400 ? y + 543 : y;
+        return `${d}/${m}/${thaiYear}`;
+      }
+    }
+    const slashParts = cleanStr.split('/');
+    if (slashParts.length === 3) {
+      const d = parseInt(slashParts[0], 10);
+      const m = parseInt(slashParts[1], 10);
+      let y = parseInt(slashParts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        if (y < 2400) y += 543;
+        return `${d}/${m}/${y}`;
+      }
+    }
+    return dateStr;
+  };
 
-  // Format date display (Thai or ISO)
-  const displayDate = order.reportDate ? order.reportDate.split(' ')[0] : '...........................................';
+  const displayDate = formatThaiDate(order.reportDate);
 
   // Identify if this is a general/other repair ticket
   const isGeneralOrder = order.orderType === 'general';
@@ -112,8 +135,7 @@ export const PrintableWorkOrder: React.FC<{
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-emerald-400" />
             <div>
-              <span className="font-semibold text-sm">แบบฟอร์มบันทึกข้อความ ขออนุมัติซ่อมบำรุงพัสดุ-ครุภัณฑ์ (TH SarabunPSK ขนาด 14)</span>
-              <span className="text-xs text-slate-400 ml-2">ผู้ส่งซ่อม: {reporterDisplayName}</span>
+              <span className="font-semibold text-sm">แบบฟอร์มบันทึกข้อความ ขออนุมัติซ่อมบำรุงพัสดุ-ครุภัณฑ์ โรงพยาบาลสังขละบุรี</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -149,7 +171,7 @@ export const PrintableWorkOrder: React.FC<{
           <div className="space-y-0.5 mb-1 text-black">
             <div className="flex items-baseline gap-1">
               <span className="font-bold">ส่วนราชการ</span>
-              <span>โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป โทร. 034 – 595030 ต่อ 205</span>
+              <span>{order.governmentSection || 'โรงพยาบาลสังขละบุรี ฝ่ายบริหารทั่วไป โทร. 034 – 595030 ต่อ 205'}</span>
             </div>
 
             <div className="flex items-baseline justify-between">
@@ -177,10 +199,7 @@ export const PrintableWorkOrder: React.FC<{
           {/* Intro Paragraph */}
           <div className="mt-1 mb-1 text-black">
             <p className="indent-12 leading-relaxed">
-              ด้วยฝ่าย/งาน {order.department ? <span>{order.department}</span> : '...................................................'} มีความประสงค์จะทำการซ่อมบำรุงพัสดุ-ครุภัณฑ์
-            </p>
-            <p className="leading-relaxed">
-              การแพทย์ / สำนักงาน / ยานพาหนะ / อาคาร / สิ่งก่อสร้าง / งานบ้านงานครัว / อุปกรณ์และอื่นๆ ตามตารางดังต่อไปนี้
+              ด้วยฝ่าย/งาน {order.department ? <span>{order.department}</span> : 'งานสารสนเทศ'} มีความประสงค์จะทำการซ่อมบำรุงพัสดุ-ครุภัณฑ์การแพทย์ / สำนักงาน / ยานพาหนะ / อาคาร / สิ่งก่อสร้าง / งานบ้านงานครัว / อุปกรณ์และอื่นๆ ตามตารางดังต่อไปนี้
             </p>
           </div>
 
@@ -243,18 +262,18 @@ export const PrintableWorkOrder: React.FC<{
             </div>
           </div>
 
-          {/* Signature: ผู้ส่งซ่อม (ชิดขวา ตามชื่อที่ Login) */}
+          {/* Signature: ผู้ส่งซ่อม (ชิดขวา ช่องว่างเพื่อเซ็นชื่อ) */}
           <div className="flex justify-end mb-2">
             <div className="text-center w-72">
               <div className="flex items-baseline justify-center">
                 <span>ลงชื่อ</span>
                 <span className="border-b border-dotted border-black flex-1 mx-1 text-center font-semibold">
-                  {reporterDisplayName}
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 </span>
                 <span>ผู้ส่งซ่อม</span>
               </div>
               <div className="mt-0.5">
-                ({reporterDisplayName})
+                (&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)
               </div>
             </div>
           </div>
@@ -350,7 +369,7 @@ export const PrintableWorkOrder: React.FC<{
                   ({order.headOfficerName || 'นางสาวชุติญา จรัสกุลธาดา'})
                 </div>
                 <div>
-                  ตำแหน่ง {order.headOfficerTitle || 'หัวหน้าเจ้าหน้าที่'}
+                  ตำแหน่ง {order.headOfficerTitle && order.headOfficerTitle !== 'หัวหน้าเจ้าหน้าที่' ? order.headOfficerTitle : 'นักจัดการงานทั่วไป'}
                 </div>
               </div>
 
@@ -371,13 +390,13 @@ export const PrintableWorkOrder: React.FC<{
                 </div>
 
                 <div className="mt-4">
-                  ({order.approverName || 'นายจิรวัฒน์ วงษ์สวัสดิ์'})
+                  ({order.approverName || 'นายแพทย์จิรวัฒน์ วงษ์สวัสดิ์'})
                 </div>
                 <div>
                   นายแพทย์ชำนาญการ (ด้านเวชกรรม)
                 </div>
                 <div>
-                  ตำแหน่ง {order.approverTitle || 'ผู้อำนวยการโรงพยาบาลสังขละบุรี'}
+                  รักษาการในตำแหน่งผู้อำนวยการโรงพยาบาลสังขละบุรี
                 </div>
               </div>
 

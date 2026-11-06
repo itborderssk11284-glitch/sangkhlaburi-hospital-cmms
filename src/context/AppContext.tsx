@@ -27,6 +27,7 @@ import {
 } from '../data/mockData';
 import {
   saveWorkOrderToFirestore,
+  deleteWorkOrderFromFirestore,
   subscribeToWorkOrders,
   saveAssetToFirestore,
   subscribeToAssets,
@@ -124,6 +125,7 @@ interface AppContextType {
   deleteAsset: (id: string) => Promise<void>;
   
   addWorkOrder: (order: Omit<WorkOrder, 'id' | 'orderNumber' | 'reportDate' | 'status' | 'usedParts' | 'totalCost'>) => void;
+  deleteWorkOrder: (id: string) => Promise<void>;
   updateWorkOrderStatus: (id: string, status: WorkOrderStatus, notes?: string) => void;
   updateWorkOrder: (id: string, updates: Partial<WorkOrder>) => void;
   issuePartToOrder: (orderId: string, partId: string, quantity: number) => boolean;
@@ -523,7 +525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const approveUser = async (
     userId: string, 
-    allowedMenus?: ('dashboard' | 'assets' | 'inventory' | 'work-orders' | 'pm-calibration' | 'reports' | 'workforce')[], 
+    allowedMenus?: NavTabId[], 
     role?: UserRole
   ) => {
     const target = systemUsers.find(u => u.id === userId);
@@ -784,6 +786,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const deleteWorkOrder = async (id: string) => {
+    setWorkOrders(prev => prev.filter(wo => wo.id !== id));
+    await deleteWorkOrderFromFirestore(id);
+  };
+
   const issuePartToOrder = (orderId: string, partId: string, quantity: number): boolean => {
     const part = spareParts.find(p => p.id === partId);
     if (!part || part.quantity < quantity) {
@@ -1018,6 +1025,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAsset,
         deleteAsset,
         addWorkOrder,
+        deleteWorkOrder,
         updateWorkOrderStatus,
         updateWorkOrder,
         issuePartToOrder,

@@ -547,9 +547,9 @@ export const WorkforceManagement: React.FC = () => {
                   className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="ทั้งหมด">บทบาททั้งหมด</option>
-                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น</option>
-                  <option value="supervisor">2. ผู้บริหาร (Executive / Director) - ดูได้อย่างเดียว เมนู 01-06</option>
-                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการเมนู 02-06</option>
+                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น (มีสิทธิ์อนุมัติซ่อม)</option>
+                  <option value="supervisor">2. ผู้อำนวยการ/ผู้บริหาร (Director) - ดูได้อย่างเดียว เมนู 01-06 (มีสิทธิ์อนุมัติซ่อม)</option>
+                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการเมนู 02-06 (บันทึกผลช่าง)</option>
                   <option value="department_staff">4. ผู้ใช้งานทั่วไป (General User) - ดูและพิมพ์ใบแจ้งซ่อม</option>
                 </select>
               </div>
@@ -1394,9 +1394,9 @@ export const WorkforceManagement: React.FC = () => {
                   onChange={(e) => setSelectedRoleForPerm(e.target.value as UserRole)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-xs"
                 >
-                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น</option>
-                  <option value="supervisor">2. ผู้บริหาร (Executive / Director) - ดูได้อย่างเดียว เมนู 01-06</option>
-                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการเมนู 02-06</option>
+                  <option value="super_admin">1. ผู้ดูแลระบบ (Admin) - ทำได้ทุกฟังก์ชั่น (อนุมัติงานซ่อมได้)</option>
+                  <option value="supervisor">2. ผู้อำนวยการ/ผู้บริหาร (Director) - ดูได้อย่างเดียว 01-06 (อนุมัติงานซ่อมได้)</option>
+                  <option value="technician">3. ช่างและเจ้าหน้าที่พัสดุ (Technician & Supply) - จัดการ 02-06 (ไม่มีสิทธิ์อนุมัติ)</option>
                   <option value="department_staff">4. ผู้ใช้งานทั่วไป (General User) - ดูและพิมพ์ใบแจ้งซ่อม</option>
                 </select>
               </div>
@@ -1413,15 +1413,15 @@ export const WorkforceManagement: React.FC = () => {
                     className="p-2.5 rounded-xl border border-purple-200 hover:border-purple-400 hover:bg-purple-50/70 text-left transition cursor-pointer"
                   >
                     <p className="font-bold text-purple-900 text-[11px]">1. แอดมิน (Admin)</p>
-                    <p className="text-[10px] text-purple-700">ทุก 7 ฟังก์ชั่น (Full Access)</p>
+                    <p className="text-[10px] text-purple-700">ทุกฟังก์ชั่น + อนุมัติซ่อม</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPreset('supervisor')}
                     className="p-2.5 rounded-xl border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/70 text-left transition cursor-pointer"
                   >
-                    <p className="font-bold text-indigo-900 text-[11px]">2. ผู้บริหาร</p>
-                    <p className="text-[10px] text-indigo-700">ดูได้อย่างเดียว เมนู 01-06</p>
+                    <p className="font-bold text-indigo-900 text-[11px]">2. ผู้อำนวยการ</p>
+                    <p className="text-[10px] text-indigo-700">ดู 01-06 + สิทธิ์อนุมัติซ่อม</p>
                   </button>
                   <button
                     type="button"
@@ -1429,7 +1429,7 @@ export const WorkforceManagement: React.FC = () => {
                     className="p-2.5 rounded-xl border border-blue-200 hover:border-blue-400 hover:bg-blue-50/70 text-left transition cursor-pointer"
                   >
                     <p className="font-bold text-blue-900 text-[11px]">3. ช่างและพัสดุ</p>
-                    <p className="text-[10px] text-blue-700">เพิ่ม/ลบ/แก้/พิมพ์ เมนู 02-06</p>
+                    <p className="text-[10px] text-blue-700">จัดการ 02-06 (บันทึกผล)</p>
                   </button>
                   <button
                     type="button"
