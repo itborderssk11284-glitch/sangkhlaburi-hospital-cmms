@@ -214,12 +214,12 @@ export const TopBar: React.FC<TopBarProps> = ({
             </button>
           )}
 
-          {/* Clear Sample Data to Empty Database Button */}
-          {(assets.length > 0 || workOrders.length > 0) && (
+          {/* Clear Sample Data to Empty Database Button - Super Admin ONLY */}
+          {currentUser?.role === 'super_admin' && (assets.length > 0 || workOrders.length > 0) && (
             <button
               onClick={() => setIsClearModalOpen(true)}
               className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition text-xs font-medium cursor-pointer"
-              title="ล้างข้อมูลตัวอย่างให้เป็นฐานเปล่าพร้อมใช้งานจริง"
+              title="ล้างข้อมูลตัวอย่างให้เป็นฐานเปล่าพร้อมใช้งานจริง (เฉพาะแอดมิน)"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>ล้างเป็นฐานเปล่า</span>
@@ -296,6 +296,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 type="button"
                 disabled={isClearing}
                 onClick={async () => {
+                  if (currentUser?.role !== 'super_admin') return;
                   setIsClearing(true);
                   await clearAllSampleData();
                   setIsClearing(false);

@@ -619,8 +619,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await saveUserToFirestore(updatedUser);
   };
 
-  // Clean Empty Production Database (ล้างเป็นฐานเปล่า 100% พร้อมบันทึกข้อมูลจริง)
+  // Clean Empty Production Database (ล้างเป็นฐานเปล่า 100% พร้อมบันทึกข้อมูลจริง - เฉพาะ Admin เท่านั้น)
   const clearAllSampleData = async () => {
+    if (currentUser && currentUser.role !== 'super_admin') {
+      console.warn('Unauthorized: only super_admin can clear database.');
+      return;
+    }
+
     setAssets([]);
     setWorkOrders([]);
     setPmRecords([]);

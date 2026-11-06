@@ -455,27 +455,29 @@ export const WorkforceManagement: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsClearDbConfirmOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-98 border border-rose-200 rounded-xl transition cursor-pointer shadow-2xs"
-                title="ล้างข้อมูลตัวอย่างทั้งหมดเป็นฐานเปล่า"
-              >
-                <Trash2 className="w-4 h-4 text-rose-600" />
-                <span>ล้างข้อมูลเป็นฐานเปล่า</span>
-              </button>
+            {currentUser?.role === 'super_admin' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsClearDbConfirmOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-98 border border-rose-200 rounded-xl transition cursor-pointer shadow-2xs"
+                  title="ล้างข้อมูลตัวอย่างทั้งหมดเป็นฐานเปล่า (สงวนสิทธิ์เฉพาะผู้ดูแลระบบ Admin)"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-600" />
+                  <span>ล้างข้อมูลเป็นฐานเปล่า</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setIsLoadSampleConfirmOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 active:scale-98 border border-slate-200 rounded-xl transition cursor-pointer"
-                title="โหลดข้อมูลตัวอย่างสำหรับการทดสอบ"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
-                <span>โหลดตัวอย่างทดสอบ</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setIsLoadSampleConfirmOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 active:scale-98 border border-slate-200 rounded-xl transition cursor-pointer"
+                  title="โหลดข้อมูลตัวอย่างสำหรับการทดสอบ (เฉพาะ Admin)"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                  <span>โหลดตัวอย่างทดสอบ</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* User Metrics Strip */}
